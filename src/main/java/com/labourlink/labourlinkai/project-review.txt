@@ -1,0 +1,1054 @@
+LabourLinkAI
+.mvn
+|->wrapper->maven-wrapper.properties
+	wrapperVersion=3.3.4
+	distributionType=only-script
+	distributionUrl=https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.9.16/apache-maven-3.9.16-bin.zip
+src
+|->main->java->com->labourlink->labourlinkai->auth->AuthController.java
+	package com.labourlink.labourlinkai.auth;
+
+import com.labourlink.labourlinkai.entity.Contractor;
+import com.labourlink.labourlinkai.repository.ContractorRepository;
+import com.labourlink.labourlinkai.security.JwtUtil;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Optional;
+
+@RestController
+@RequestMapping("/auth")
+public class AuthController {
+
+    @Autowired
+    private ContractorRepository contractorRepository;
+
+    private JwtUtil jwtUtil = new JwtUtil();
+
+    // LOGIN API
+    @PostMapping("/login")
+    public String login(@RequestParam String phone) {
+
+        Optional<Contractor> contractor =
+                contractorRepository.findAll()
+                        .stream()
+                        .filter(c -> phone.equals(c.getPhone()))
+                        .findFirst();
+
+        if (contractor.isEmpty()) {
+            return "Invalid phone number";
+        }
+
+        // Generate JWT token
+        String token = jwtUtil.generateToken(contractor.get().getPhone());
+
+        return token;
+    }
+}
+|->main->java->com->labourlink->labourlinkai->config
+|->main->java->com->labourlink->labourlinkai->Controller->ContractorController.java
+	package com.labourlink.labourlinkai.controller;
+
+import com.labourlink.labourlinkai.response.ApiResponse;
+import com.labourlink.labourlinkai.entity.Contractor;
+import com.labourlink.labourlinkai.service.ContractorService;
+
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/contractors")
+public class ContractorController {
+
+    @Autowired
+    private ContractorService contractorService;
+
+    // CREATE
+    @PostMapping("/register")
+    public ResponseEntity<ApiResponse<Contractor>> registerContractor(
+            @Valid @RequestBody Contractor contractor) {
+
+        Contractor saved = contractorService.registerContractor(contractor);
+
+        return new ResponseEntity<>(
+                new ApiResponse<>(
+                        "Contractor registered successfully",
+                        "success",
+                        saved
+                ),
+                HttpStatus.CREATED
+        );
+    }
+
+    // READ ALL
+    @GetMapping
+public ResponseEntity<ApiResponse<List<Contractor>>> getAllContractors() {
+
+    List<Contractor> contractors = contractorService.getAllContractors();
+
+    return ResponseEntity.ok(
+            new ApiResponse<>(
+                    "Contractors fetched successfully",
+                    "success",
+                    contractors
+            )
+    );
+}
+
+    // DELETE
+    @DeleteMapping("/{id}")
+public ResponseEntity<ApiResponse<String>> deleteContractor(@PathVariable Long id) {
+
+    contractorService.deleteContractor(id);
+
+    return ResponseEntity.ok(
+            new ApiResponse<>(
+                    "Contractor deleted successfully",
+                    "success",
+                    "Deleted ID: " + id
+            )
+    );
+}
+
+    // SEARCH
+    @GetMapping("/search")
+public ResponseEntity<ApiResponse<List<Contractor>>> searchByLocation(@RequestParam String location) {
+
+    List<Contractor> contractors = contractorService.searchByLocation(location);
+
+    return ResponseEntity.ok(
+            new ApiResponse<>(
+                    "Search results fetched successfully",
+                    "success",
+                    contractors
+            )
+    );
+}
+}
+|->main->java->com->labourlink->labourlinkai->Controller->LabourController.java
+	package com.labourlink.labourlinkai.controller;
+
+import com.labourlink.labourlinkai.entity.Labour;
+import com.labourlink.labourlinkai.service.LabourService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/labours")
+public class LabourController {
+
+    @Autowired
+    private LabourService labourService;
+
+    // CREATE
+    @PostMapping
+    public Labour saveLabour(@RequestBody Labour labour) {
+        return labourService.saveLabour(labour);
+    }
+
+    // READ ALL
+    @GetMapping
+    public List<Labour> getAllLabours() {
+        return labourService.getAllLabours();
+    }
+
+    // UPDATE
+    @PutMapping("/{id}")
+    public Labour updateLabour(@PathVariable Long id,
+                                @RequestBody Labour labour) {
+        return labourService.updateLabour(id, labour);
+    }
+
+    // DELETE
+    @DeleteMapping("/{id}")
+    public String deleteLabour(@PathVariable Long id) {
+        labourService.deleteLabour(id);
+        return "Labour deleted successfully";
+    }
+
+    // SEARCH + RANK
+    @GetMapping("/search")
+    public List<Labour> searchLabours(
+            @RequestParam String skill,
+            @RequestParam String location) {
+
+        return labourService.searchAndRankLabours(skill, location);
+    }
+
+    // FILTER BY SKILL
+    @GetMapping("/filter/skill")
+    public List<Labour> filterBySkill(@RequestParam String skill) {
+        return labourService.filterBySkill(skill);
+    }
+
+    // FILTER BY LOCATION
+    @GetMapping("/filter/location")
+    public List<Labour> filterByLocation(@RequestParam String location) {
+        return labourService.filterByLocation(location);
+    }
+}
+|->main->java->com->labourlink->labourlinkai->Controller->TestController.java
+	package com.labourlink.labourlinkai.controller;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class TestController {
+
+    @GetMapping("/")
+    public String home() {
+        return "LabourLink AI Backend Running Successfully";
+    }
+}
+|->main->java->com->labourlink->labourlinkai->dto
+|->main->java->com->labourlink->labourlinkai->entity->Contractor.java
+	package com.labourlink.labourlinkai.entity;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+
+@Entity
+@Table(name = "contractors")
+public class Contractor {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long contractorId;
+
+    @NotBlank(message = "Contractor name is required")
+    private String contractorName;
+
+    @NotBlank(message = "Company name is required")
+    private String companyName;
+
+    @NotBlank(message = "Phone is required")
+    @Pattern(regexp = "\\d{10}", message = "Phone must be 10 digits")
+    private String phone;
+
+    @NotBlank(message = "Location is required")
+    private String location;
+
+    public Contractor() {}
+
+    public Contractor(String contractorName, String companyName, String phone, String location) {
+        this.contractorName = contractorName;
+        this.companyName = companyName;
+        this.phone = phone;
+        this.location = location;
+    }
+
+    public Long getContractorId() {
+        return contractorId;
+    }
+
+    public void setContractorId(Long contractorId) {
+        this.contractorId = contractorId;
+    }
+
+    public String getContractorName() {
+        return contractorName;
+    }
+
+    public void setContractorName(String contractorName) {
+        this.contractorName = contractorName;
+    }
+
+    public String getCompanyName() {
+        return companyName;
+    }
+
+    public void setCompanyName(String companyName) {
+        this.companyName = companyName;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
+    }
+}
+|->main->java->com->labourlink->labourlinkai->entity->Labour.java
+	package com.labourlink.labourlinkai.entity;
+
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "labours")
+public class Labour {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String name;
+    private String phone;
+    private String skill;
+    private String location;
+
+    // ⭐ NEW FIELDS (SMART FEATURES)
+    private boolean available = true;
+    private double rating = 0.0;
+
+    // constructors
+    public Labour() {}
+
+    public Labour(String name, String phone, String skill, String location,
+                  boolean available, double rating) {
+        this.name = name;
+        this.phone = phone;
+        this.skill = skill;
+        this.location = location;
+        this.available = available;
+        this.rating = rating;
+    }
+
+    // getters & setters
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public String getSkill() {
+        return skill;
+    }
+
+    public void setSkill(String skill) {
+        this.skill = skill;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
+    }
+
+    public boolean isAvailable() {
+        return available;
+    }
+
+    public void setAvailable(boolean available) {
+        this.available = available;
+    }
+
+    public double getRating() {
+        return rating;
+    }
+
+    public void setRating(double rating) {
+        this.rating = rating;
+    }
+}	
+|->main->java->com->labourlink->labourlinkai->entity->Worker.java
+package com.labourlink.labourlinkai.entity;
+
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "workers")
+public class Worker {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long workerId;
+
+    private String name;
+    private String phone;
+    private String skill;
+    private Integer experience;
+    private String location;
+    private Boolean availability;
+
+    public Worker() {
+    }
+
+    public Worker(Long workerId, String name, String phone, String skill, Integer experience, String location, Boolean availability) {
+        this.workerId = workerId;
+        this.name = name;
+        this.phone = phone;
+        this.skill = skill;
+        this.experience = experience;
+        this.location = location;
+        this.availability = availability;
+    }
+
+    public Long getWorkerId() {
+        return workerId;
+    }
+
+    public void setWorkerId(Long workerId) {
+        this.workerId = workerId;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public String getSkill() {
+        return skill;
+    }
+
+    public void setSkill(String skill) {
+        this.skill = skill;
+    }
+
+    public Integer getExperience() {
+        return experience;
+    }
+
+    public void setExperience(Integer experience) {
+        this.experience = experience;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
+    }
+
+    public Boolean getAvailability() {
+        return availability;
+    }
+
+    public void setAvailability(Boolean availability) {
+        this.availability = availability;
+    }
+}
+|->main->java->com->labourlink->labourlinkai->exception->GlobalExceptionHandler.java
+	package com.labourlink.labourlinkai.exception;
+
+import com.labourlink.labourlinkai.response.ApiResponse;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.util.HashMap;
+import java.util.Map;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    // Handle runtime exceptions (like not found)
+    @ExceptionHandler(RuntimeException.class)
+    public ApiResponse<String> handleRuntimeException(RuntimeException ex) {
+        return new ApiResponse<>(
+                ex.getMessage(),
+                "error",
+                null
+        );
+    }
+
+    // Handle validation errors (@Valid)
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ApiResponse<Map<String, String>> handleValidationErrors(MethodArgumentNotValidException ex) {
+
+        Map<String, String> errors = new HashMap<>();
+
+        ex.getBindingResult().getFieldErrors().forEach(error ->
+                errors.put(error.getField(), error.getDefaultMessage())
+        );
+
+        return new ApiResponse<>(
+                "Validation failed",
+                "error",
+                errors
+        );
+    }
+}
+|->main->java->com->labourlink->labourlinkai->repository->ContractorRepository.java
+	package com.labourlink.labourlinkai.repository;
+
+import com.labourlink.labourlinkai.entity.Contractor;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface ContractorRepository extends JpaRepository<Contractor, Long> {
+
+    Optional<Contractor> findByPhone(String phone);
+
+    List<Contractor> findByLocation(String location);
+
+    List<Contractor> findByLocationContainingIgnoreCase(String location);
+}
+|->main->java->com->labourlink->labourlinkai->repository->LabourRepository.java
+	package com.labourlink.labourlinkai.repository;
+
+import com.labourlink.labourlinkai.entity.Labour;
+import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.List;
+
+public interface LabourRepository extends JpaRepository<Labour, Long> {
+
+    List<Labour> findBySkillIgnoreCase(String skill);
+
+    List<Labour> findByLocationIgnoreCase(String location);
+}
+|->main->java->com->labourlink->labourlinkai->repository->WorkerRepository.java
+	package com.labourlink.labourlinkai.repository;
+
+import com.labourlink.labourlinkai.entity.Worker;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public interface WorkerRepository extends JpaRepository<Worker, Long> {
+}
+|->main->java->com->labourlink->labourlinkai->response->ApiResponse.java
+	package com.labourlink.labourlinkai.response;
+
+public class ApiResponse<T> {
+
+    private String message;
+    private String status;
+    private T data;
+
+    public ApiResponse() {}
+
+    public ApiResponse(String message, String status, T data) {
+        this.message = message;
+        this.status = status;
+        this.data = data;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public void setMessage(String message) {
+        this.message = message;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public T getData() {
+        return data;
+    }
+
+    public void setData(T data) {
+        this.data = data;
+    }
+}
+|->main->java->com->labourlink->labourlinkai->security->JwtFilter.java
+	package com.labourlink.labourlinkai.security;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+
+@Component
+public class JwtFilter extends OncePerRequestFilter {
+
+    private JwtUtil jwtUtil = new JwtUtil();
+
+    @Override
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
+    ) throws ServletException, IOException {
+
+        String path = request.getRequestURI();
+
+        // Public endpoints (NO JWT required)
+        if (path.startsWith("/auth")
+                || path.startsWith("/contractors")
+                || path.startsWith("/workers")) {
+
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        String authHeader = request.getHeader("Authorization");
+
+        // Check Authorization header
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.getWriter().write("Missing or invalid token");
+            return;
+        }
+
+        String token = authHeader.substring(7);
+
+        // Validate JWT token
+        if (!jwtUtil.validateToken(token)) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.getWriter().write("Invalid token");
+            return;
+        }
+
+        // Token valid -> continue request
+        filterChain.doFilter(request, response);
+    }
+}
+|->main->java->com->labourlink->labourlinkai->security->JwtUtil.java
+	package com.labourlink.labourlinkai.security;
+
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
+
+import java.security.Key;
+import java.util.Date;
+
+public class JwtUtil {
+
+    // Secret key (VERY IMPORTANT)
+    private static final String SECRET = "my_super_secret_key_for_labourlink_ai_project_123456";
+
+    private static final long EXPIRATION_TIME = 1000 * 60 * 60 * 10; // 10 hours
+
+    private Key getSigningKey() {
+        return Keys.hmacShaKeyFor(SECRET.getBytes());
+    }
+
+    // Generate token
+    public String generateToken(String username) {
+
+        return Jwts.builder()
+                .setSubject(username)
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+
+    // Extract username
+    public String extractUsername(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(getSigningKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody()
+                .getSubject();
+    }
+
+    // Validate token
+    public boolean validateToken(String token) {
+        try {
+            extractUsername(token);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+}	
+|->main->java->com->labourlink->labourlinkai->security->SecurityConfig.java
+	package com.labourlink.labourlinkai.security;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.SecurityFilterChain;
+
+@Configuration
+public class SecurityConfig {
+
+    private final JwtFilter jwtFilter;
+
+    public SecurityConfig(JwtFilter jwtFilter) {
+        this.jwtFilter = jwtFilter;
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+
+        http
+                .csrf(csrf -> csrf.disable())
+
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers("/contractors/**").permitAll()
+                        .requestMatchers("/workers/**").permitAll()
+                        .anyRequest().authenticated()
+                );
+
+        return http.build();
+    }
+}
+|->main->java->com->labourlink->labourlinkai->service->ContractorService.java
+	package com.labourlink.labourlinkai.service;
+
+import com.labourlink.labourlinkai.entity.Contractor;
+import java.util.List;
+
+public interface ContractorService {
+
+    Contractor registerContractor(Contractor contractor);
+
+    List<Contractor> getAllContractors();
+    List<Contractor> getContractorsByLocation(String location);
+    
+    List<Contractor> searchByLocation(String location);
+    void deleteContractor(Long id);
+}
+|->main->java->com->labourlink->labourlinkai->service->ContractorServiceImpl.java
+package com.labourlink.labourlinkai.service;
+
+import com.labourlink.labourlinkai.entity.Contractor;
+import com.labourlink.labourlinkai.repository.ContractorRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service
+public class ContractorServiceImpl implements ContractorService 
+{
+
+    @Autowired
+    private ContractorRepository contractorRepository;
+
+    @Override
+    public Contractor registerContractor(Contractor contractor) 
+    {
+        return contractorRepository.save(contractor);
+    }
+
+    @Override
+    public List<Contractor> getAllContractors() 
+    {
+        return contractorRepository.findAll();
+    }
+    @Override
+    public List<Contractor> getContractorsByLocation(String location) 
+    {
+        return contractorRepository.findByLocation(location);
+    }
+    @Override
+public List<Contractor> searchByLocation(String location) {
+    return contractorRepository.findByLocationContainingIgnoreCase(location);
+}
+    @Override
+    public void deleteContractor(Long id) 
+    {
+
+        if (!contractorRepository.existsById(id)) 
+        {
+            throw new RuntimeException("Contractor not found with id: " + id);
+        }
+
+        contractorRepository.deleteById(id);
+    }
+}
+|->main->java->com->labourlink->labourlinkai->service->LabourService.java
+package com.labourlink.labourlinkai.service;
+
+import com.labourlink.labourlinkai.entity.Labour;
+import java.util.List;
+
+public interface LabourService {
+
+    Labour saveLabour(Labour labour);
+
+    List<Labour> getAllLabours();
+
+    Labour updateLabour(Long id, Labour updatedLabour);
+
+    void deleteLabour(Long id);
+
+    List<Labour> searchAndRankLabours(String skill, String location);
+
+    List<Labour> filterBySkill(String skill);
+
+    List<Labour> filterByLocation(String location);
+}
+|->main->java->com->labourlink->labourlinkai->service->LabourServiceImpl.java
+package com.labourlink.labourlinkai.service;
+
+import com.labourlink.labourlinkai.entity.Labour;
+import com.labourlink.labourlinkai.repository.LabourRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+@Service
+public class LabourServiceImpl implements LabourService {
+
+    @Autowired
+    private LabourRepository labourRepository;
+
+    // CREATE
+    @Override
+    public Labour saveLabour(Labour labour) {
+        return labourRepository.save(labour);
+    }
+
+    // READ ALL
+    @Override
+    public List<Labour> getAllLabours() {
+        return labourRepository.findAll();
+    }
+
+    // UPDATE
+    @Override
+    public Labour updateLabour(Long id, Labour updatedLabour) {
+
+        Optional<Labour> existing = labourRepository.findById(id);
+
+        if (existing.isPresent()) {
+
+            Labour labour = existing.get();
+
+            labour.setName(updatedLabour.getName());
+            labour.setPhone(updatedLabour.getPhone());
+            labour.setSkill(updatedLabour.getSkill());
+            labour.setLocation(updatedLabour.getLocation());
+            labour.setAvailable(updatedLabour.isAvailable());
+            labour.setRating(updatedLabour.getRating());
+
+            return labourRepository.save(labour);
+        }
+
+        throw new RuntimeException("Labour not found with id: " + id);
+    }
+
+    // DELETE
+    @Override
+    public void deleteLabour(Long id) {
+        labourRepository.deleteById(id);
+    }
+
+    // FILTER BY SKILL
+    @Override
+    public List<Labour> filterBySkill(String skill) {
+        return labourRepository.findBySkillIgnoreCase(skill);
+    }
+
+    // FILTER BY LOCATION
+    @Override
+    public List<Labour> filterByLocation(String location) {
+        return labourRepository.findByLocationIgnoreCase(location);
+    }
+
+    // SEARCH + RANKING ENGINE
+    @Override
+    public List<Labour> searchAndRankLabours(String skill, String location) {
+
+        List<Labour> labours = labourRepository.findAll();
+
+        // STEP 1: only available workers
+        labours = labours.stream()
+                .filter(Labour::isAvailable)
+                .collect(Collectors.toList());
+
+        // STEP 2: ranking
+        labours.sort((a, b) ->
+                calculateScore(b, skill, location) - calculateScore(a, skill, location)
+        );
+
+        return labours;
+    }
+
+    // SCORING ENGINE (SMART RANKING)
+    private int calculateScore(Labour labour, String skill, String location) {
+
+        int score = 0;
+
+        // skill match
+        if (labour.getSkill() != null &&
+                labour.getSkill().equalsIgnoreCase(skill)) {
+            score += 50;
+        }
+
+        // location match
+        if (labour.getLocation() != null &&
+                labour.getLocation().equalsIgnoreCase(location)) {
+            score += 30;
+        }
+
+        // rating boost (capped)
+        score += Math.min((int) (labour.getRating() * 5), 25);
+
+        return score;
+    }
+}
+|->main->java->com->labourlink->labourlinkai->service->WorkerService.java
+package com.labourlink.labourlinkai.service;
+
+import com.labourlink.labourlinkai.entity.Worker;
+import java.util.List;
+
+public interface WorkerService {
+
+    Worker registerWorker(Worker worker);
+
+    List<Worker> getAllWorkers();
+}
+|->main->java->com->labourlink->labourlinkai->service->WorkerServiceImpl.java
+	package com.labourlink.labourlinkai.service;
+
+import com.labourlink.labourlinkai.entity.Worker;
+import com.labourlink.labourlinkai.repository.WorkerRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service
+public class WorkerServiceImpl implements WorkerService {
+
+    @Autowired
+    private WorkerRepository workerRepository;
+
+    @Override
+    public Worker registerWorker(Worker worker) {
+        return workerRepository.save(worker);
+    }
+
+    @Override
+    public List<Worker> getAllWorkers() {
+        return workerRepository.findAll();
+    }
+}
+|->main->java->com->labourlink->labourlinkai->service->LabourlinkaiApplication.java
+package com.labourlink.labourlinkai;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class LabourlinkaiApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(LabourlinkaiApplication.class, args);
+	}
+
+}
+|->main->java->com->labourlink->labourlinkai->resources->static
+|->main->java->com->labourlink->labourlinkai->resources->templates
+|->main->java->com->labourlink->labourlinkai->resources->application.properties
+|->main->java->com->labourlink->labourlinkai->test->LabourlinkaiApplicationTests.java
+	package com.labourlink.labourlinkai;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.context.SpringBootTest;
+
+@SpringBootTest
+class LabourlinkaiApplicationTests {
+
+	@Test
+	void contextLoads() {
+	}
+
+}
+|->main->java->com->labourlink->labourlinkai->
+auth
+controller
+entity
+exception
+repository
+response
+security
+service
+generated-sources
+annotations
+generated-test-sources
+test-annotations
+maven-status
+maven-compiler-plugin
+compile
+default-compile
+testCompile
+default-testCompile
+test-classes
+com
+labourlink
+labourlinkai
+
+Total visible folders = 22
+
+📄 Visible Files
+LabourlinkaiApplication.class
+application.properties
+createdFiles.lst (compile)
+inputFiles.lst (compile)
+createdFiles.lst (testCompile)
+inputFiles.lst (testCompile)
+LabourlinkaiApplicationTests.class
+.gitattributes
+.gitignore
+HELP.md
+mvnw
+mvnw.cmd
+pom.xml
+
