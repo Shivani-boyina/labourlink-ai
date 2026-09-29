@@ -4,6 +4,7 @@ import com.labourlink.labourlinkai.entity.Contractor;
 import com.labourlink.labourlinkai.repository.ContractorRepository;
 import com.labourlink.labourlinkai.security.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Optional;
@@ -15,25 +16,45 @@ public class AuthController {
     @Autowired
     private ContractorRepository contractorRepository;
 
-    private JwtUtil jwtUtil = new JwtUtil();
+    @Autowired
+    private PasswordEncoder passwordEncoder;
 
-    // LOGIN API
+    private final JwtUtil jwtUtil;
+
+    @Autowired
+    public AuthController(JwtUtil jwtUtil) {
+        this.jwtUtil = jwtUtil;
+    }
+
     @PostMapping("/login")
-    public String login(@RequestParam String phone) {
+    public String login(
+            @RequestParam String phone,
+            @RequestParam String password) {
 
         Optional<Contractor> contractor =
-                contractorRepository.findAll()
-                        .stream()
-                        .filter(c -> phone.equals(c.getPhone()))
-                        .findFirst();
+                contractorRepository.findByPhone(phone);
 
         if (contractor.isEmpty()) {
-            return "Invalid phone number";
+            return "Invalid phone number or password";
         }
 
-        // Generate JWT token
-        String token = jwtUtil.generateToken(contractor.get().getPhone());
+        Contractor existingContractor = contractor.get();
 
-        return token;
+        if (existingContractor.getPassword() == null ||
+                existingContractor.getPassword().isBlank()) {
+
+            return "Account requires password setup";
+        }
+
+        if (!passwordEncoder.matches(
+                password,
+                existingContractor.getPassword())) {
+
+            return "Invalid phone number or password";
+        }
+
+        return jwtUtil.generateToken(
+                existingContractor.getPhone()
+        );
     }
 }

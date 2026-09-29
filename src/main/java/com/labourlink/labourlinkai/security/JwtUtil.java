@@ -3,34 +3,49 @@ package com.labourlink.labourlinkai.security;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 
+@Component
 public class JwtUtil {
 
-    // Secret key (VERY IMPORTANT)
-    private static final String SECRET = "my_super_secret_key_for_labourlink_ai_project_123456";
+    private final String secret;
+    private final long expirationTime;
 
-    private static final long EXPIRATION_TIME = 1000 * 60 * 60 * 10; // 10 hours
+    public JwtUtil(
+            @Value("${app.jwt.secret}") String secret,
+            @Value("${app.jwt.expiration}") long expirationTime) {
 
-    private Key getSigningKey() {
-        return Keys.hmacShaKeyFor(SECRET.getBytes());
+        this.secret = secret;
+        this.expirationTime = expirationTime;
     }
 
-    // Generate token
+    private Key getSigningKey() {
+        return Keys.hmacShaKeyFor(
+                secret.getBytes(StandardCharsets.UTF_8)
+        );
+    }
+
+    // Generate JWT token
     public String generateToken(String username) {
 
         return Jwts.builder()
                 .setSubject(username)
                 .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
+                .setExpiration(
+                        new Date(System.currentTimeMillis() + expirationTime)
+                )
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    // Extract username
+    // Extract username from JWT
     public String extractUsername(String token) {
+
         return Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())
                 .build()
@@ -39,8 +54,9 @@ public class JwtUtil {
                 .getSubject();
     }
 
-    // Validate token
+    // Validate JWT token
     public boolean validateToken(String token) {
+
         try {
             extractUsername(token);
             return true;

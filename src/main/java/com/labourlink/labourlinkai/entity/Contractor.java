@@ -1,4 +1,6 @@
 package com.labourlink.labourlinkai.entity;
+
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -23,6 +25,9 @@ public class Contractor {
 
     @NotBlank(message = "Location is required")
     private String location;
+
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private String password;
 
     public Contractor() {}
 
@@ -71,5 +76,13 @@ public class Contractor {
 
     public void setLocation(String location) {
         this.location = location;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
     }
 }
