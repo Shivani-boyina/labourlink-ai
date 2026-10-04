@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body { @apply bg-paper text-slate-800 font-sans text-[17px] antialiased; }
+  h1, h2, h3 { @apply font-display text-navy-900; }
+  :focus-visible { @apply outline outline-[3px] outline-offset-2 outline-safety-500; }
+}
+
+@layer components {
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-base font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60; }
+  .btn-primary { @apply btn bg-navy-800 text-white hover:bg-navy-700; }
+  .btn-accent { @apply btn bg-safety-400 text-navy-900 hover:bg-safety-500; }
+  .btn-outline { @apply btn border-2 border-navy-800 text-navy-800 hover:bg-navy-50; }
+  .btn-danger { @apply btn border-2 border-red-600 text-red-700 hover:bg-red-50; }
+  .card { @apply rounded-2xl border border-slate-200 bg-white p-5 shadow-sm; }
+  .input { @apply w-full rounded-xl border-2 border-slate-300 bg-white px-4 py-3 text-base text-slate-900 placeholder:text-slate-400; }
+  .input-error { @apply border-red-500; }
+  .label { @apply mb-1.5 block text-base font-semibold text-navy-900; }
+  .hazard { background: repeating-linear-gradient(-45deg, #f7b733 0 14px, #122445 14px 28px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
