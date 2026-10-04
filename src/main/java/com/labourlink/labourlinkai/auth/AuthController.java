@@ -1,8 +1,11 @@
 package com.labourlink.labourlinkai.auth;
 
 import com.labourlink.labourlinkai.entity.Contractor;
+import com.labourlink.labourlinkai.entity.Worker;
 import com.labourlink.labourlinkai.repository.ContractorRepository;
+import com.labourlink.labourlinkai.repository.WorkerRepository;
 import com.labourlink.labourlinkai.security.JwtUtil;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +20,9 @@ public class AuthController {
     private ContractorRepository contractorRepository;
 
     @Autowired
+    private WorkerRepository workerRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     private final JwtUtil jwtUtil;
@@ -26,6 +32,7 @@ public class AuthController {
         this.jwtUtil = jwtUtil;
     }
 
+    // Contractor login
     @PostMapping("/login")
     public String login(
             @RequestParam String phone,
@@ -54,7 +61,42 @@ public class AuthController {
         }
 
         return jwtUtil.generateToken(
-                existingContractor.getPhone()
+                existingContractor.getPhone(),
+                "CONTRACTOR"
+        );
+    }
+
+    // Worker login
+    @PostMapping("/worker/login")
+    public String workerLogin(
+            @RequestParam String phone,
+            @RequestParam String password) {
+
+        Optional<Worker> worker =
+                workerRepository.findByPhone(phone);
+
+        if (worker.isEmpty()) {
+            return "Invalid phone number or password";
+        }
+
+        Worker existingWorker = worker.get();
+
+        if (existingWorker.getPassword() == null ||
+                existingWorker.getPassword().isBlank()) {
+
+            return "Account requires password setup";
+        }
+
+        if (!passwordEncoder.matches(
+                password,
+                existingWorker.getPassword())) {
+
+            return "Invalid phone number or password";
+        }
+
+        return jwtUtil.generateToken(
+                existingWorker.getPhone(),
+                "WORKER"
         );
     }
 }

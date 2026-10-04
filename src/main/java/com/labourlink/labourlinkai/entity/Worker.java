@@ -1,5 +1,6 @@
 package com.labourlink.labourlinkai.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 
 @Entity
@@ -11,19 +12,38 @@ public class Worker {
     private Long workerId;
 
     private String name;
+
+    @Column(unique = true, nullable = false)
     private String phone;
+
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private String password;
+
     private String skill;
+
     private Integer experience;
+
     private String location;
+
     private Boolean availability;
 
     public Worker() {
     }
 
-    public Worker(Long workerId, String name, String phone, String skill, Integer experience, String location, Boolean availability) {
+    public Worker(
+            Long workerId,
+            String name,
+            String phone,
+            String password,
+            String skill,
+            Integer experience,
+            String location,
+            Boolean availability) {
+
         this.workerId = workerId;
         this.name = name;
         this.phone = phone;
+        this.password = password;
         this.skill = skill;
         this.experience = experience;
         this.location = location;
@@ -52,6 +72,14 @@ public class Worker {
 
     public void setPhone(String phone) {
         this.phone = phone;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
     }
 
     public String getSkill() {
