@@ -37,6 +37,7 @@ public class SecurityConfig {
                                 "/",
                                 "/auth/**",
                                 "/workers/register",
+                                "/workers/search",
                                 "/contractors/register"
                         ).permitAll()
                         .anyRequest().authenticated()

@@ -24,4 +24,12 @@ public class WorkerController {
     public List<Worker> getAllWorkers() {
         return workerService.getAllWorkers();
     }
+
+    @GetMapping("/search")
+    public List<Worker> searchWorkers(
+            @RequestParam(required = false) String skill,
+            @RequestParam(required = false) String location) {
+
+        return workerService.searchWorkers(skill, location);
+    }
 }
