@@ -6,6 +6,7 @@ import com.labourlink.labourlinkai.service.WorkerService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.List;
 
 @RestController
@@ -18,6 +19,13 @@ public class WorkerController {
     @PostMapping("/register")
     public Worker registerWorker(@RequestBody Worker worker) {
         return workerService.registerWorker(worker);
+    }
+
+    @GetMapping("/me")
+    public Worker getMyProfile(Principal principal) {
+        return workerService.getWorkerByPhone(
+                principal.getName()
+        );
     }
 
     @GetMapping

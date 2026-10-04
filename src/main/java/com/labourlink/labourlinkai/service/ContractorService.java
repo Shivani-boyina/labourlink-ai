@@ -9,7 +9,9 @@ public interface ContractorService {
 
     List<Contractor> getAllContractors();
     List<Contractor> getContractorsByLocation(String location);
-    
+
     List<Contractor> searchByLocation(String location);
     void deleteContractor(Long id);
+
+    void setPassword(Long id, String password);
 }

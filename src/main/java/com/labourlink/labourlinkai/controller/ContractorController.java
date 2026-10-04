@@ -100,4 +100,19 @@ public class ContractorController {
                 )
         );
     }
+@PostMapping("/{id}/set-password")
+public ResponseEntity<ApiResponse<String>> setPassword(
+        @PathVariable Long id,
+        @RequestParam String password) {
+
+    contractorService.setPassword(id, password);
+
+    return ResponseEntity.ok(
+            new ApiResponse<>(
+                    "Password set successfully",
+                    "success",
+                    "Contractor ID: " + id
+            )
+    );
+} 
 }

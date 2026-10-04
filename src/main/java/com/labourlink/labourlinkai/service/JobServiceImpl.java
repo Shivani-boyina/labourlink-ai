@@ -1,9 +1,13 @@
 package com.labourlink.labourlinkai.service;
 
 import com.labourlink.labourlinkai.dto.JobMatchDTO;
+import com.labourlink.labourlinkai.dto.JobSearchDTO;
 import com.labourlink.labourlinkai.entity.Job;
+import com.labourlink.labourlinkai.entity.Worker;
 import com.labourlink.labourlinkai.repository.ApplicationRepository;
 import com.labourlink.labourlinkai.repository.JobRepository;
+import com.labourlink.labourlinkai.repository.WorkerRepository;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -15,6 +19,9 @@ public class JobServiceImpl implements JobService {
 
     @Autowired
     private JobRepository jobRepository;
+
+    @Autowired
+    private WorkerRepository workerRepository;
 
     @Autowired
     private ApplicationRepository applicationRepository;
@@ -41,7 +48,7 @@ public class JobServiceImpl implements JobService {
     }
 
     @Override
-    public List<JobMatchDTO> searchJobs(
+    public List<JobSearchDTO> searchJobs(
             String skill,
             String location,
             Double minWage,
@@ -74,6 +81,7 @@ public class JobServiceImpl implements JobService {
         if (minWage != null) {
             jobs = jobs.stream()
                     .filter(job ->
+                            job.getWagePerDay() != null &&
                             job.getWagePerDay() >= minWage)
                     .toList();
         }
@@ -82,6 +90,7 @@ public class JobServiceImpl implements JobService {
         if (maxWage != null) {
             jobs = jobs.stream()
                     .filter(job ->
+                            job.getWagePerDay() != null &&
                             job.getWagePerDay() <= maxWage)
                     .toList();
         }
@@ -91,8 +100,8 @@ public class JobServiceImpl implements JobService {
                 .filter(this::isJobNotFull)
                 .toList();
 
-        // Step 7: Convert jobs into JobMatchDTO
-        List<JobMatchDTO> matches = jobs.stream()
+        // Step 7: Calculate matching scores
+        List<JobSearchDTO> matches = jobs.stream()
                 .map(job -> {
 
                     int score = calculateMatchingScore(
@@ -103,11 +112,11 @@ public class JobServiceImpl implements JobService {
                             maxWage
                     );
 
-                    return new JobMatchDTO(job, score);
+                    return new JobSearchDTO(job, score);
                 })
                 .sorted(
                         Comparator.comparing(
-                                JobMatchDTO::getMatchingScore
+                                JobSearchDTO::getMatchingScore
                         ).reversed()
                 )
                 .toList();
@@ -130,14 +139,13 @@ public class JobServiceImpl implements JobService {
     }
 
     /**
-     * Calculates a basic matching score.
+     * Calculates a basic job matching score.
      *
-     * Current scoring:
      * Skill    = 50 points
      * Location = 30 points
      * Wage     = 20 points
      *
-     * Maximum = 100
+     * Maximum = 100 points
      */
     private int calculateMatchingScore(
             Job job,
@@ -171,6 +179,7 @@ public class JobServiceImpl implements JobService {
         // Wage match
         if (minWage != null &&
                 maxWage != null &&
+                job.getWagePerDay() != null &&
                 job.getWagePerDay() >= minWage &&
                 job.getWagePerDay() <= maxWage) {
 
@@ -178,5 +187,78 @@ public class JobServiceImpl implements JobService {
         }
 
         return score;
+    }
+
+    /**
+     * Finds workers who match a particular job.
+     *
+     * Current matching rules:
+     * 1. Worker must be available.
+     * 2. Worker skill must match the required skill.
+     * 3. Worker location must match the job location.
+     * 4. Workers are ranked by experience.
+     */
+    @Override
+    public List<JobMatchDTO> findMatchingWorkers(Long jobId) {
+
+        // Step 1: Get the job
+        Job job = getJobById(jobId);
+
+        // Step 2: Get all workers
+        List<Worker> workers = workerRepository.findAll();
+
+        // Step 3: Filter and rank matching workers
+        return workers.stream()
+
+                // Worker must be available
+                .filter(worker ->
+                        Boolean.TRUE.equals(
+                                worker.getAvailability()
+                        )
+                )
+
+                // Worker skill must match job skill
+                .filter(worker ->
+                        worker.getSkill() != null &&
+                        job.getRequiredSkill() != null &&
+                        worker.getSkill().equalsIgnoreCase(
+                                job.getRequiredSkill()
+                        )
+                )
+
+                // Worker location must match job location
+                .filter(worker ->
+                        worker.getLocation() != null &&
+                        job.getLocation() != null &&
+                        worker.getLocation().equalsIgnoreCase(
+                                job.getLocation()
+                        )
+                )
+
+                // More experienced workers appear first
+                .sorted(
+                        Comparator.comparing(
+                                Worker::getExperience,
+                                Comparator.nullsLast(
+                                        Comparator.reverseOrder()
+                                )
+                        )
+                )
+
+                // Convert Worker into JobMatchDTO
+                .map(worker ->
+                        new JobMatchDTO(
+                                worker.getWorkerId(),
+                                worker.getName(),
+                                worker.getPhone(),
+                                worker.getSkill(),
+                                worker.getExperience(),
+                                worker.getLocation(),
+                                worker.getAvailability(),
+                                "Skill and location match; ranked by experience"
+                        )
+                )
+
+                .toList();
     }
 }
