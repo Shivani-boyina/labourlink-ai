@@ -1,5 +1,7 @@
+
 import { useState, type FormEvent } from 'react';
 import { Search } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
 import EmptyState from '../components/EmptyState';
@@ -9,6 +11,7 @@ import { useFetch } from '../utils/useFetch';
 import { SKILLS } from './WorkerRegister';
 
 export default function WorkerSearch() {
+  const { t } = useTranslation();
   const [skill, setSkill] = useState('');
   const [location, setLocation] = useState('');
   const [applied, setApplied] = useState({
@@ -34,19 +37,22 @@ export default function WorkerSearch() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
-      <h1 className="text-3xl font-bold">Find Workers</h1>
+      <h1 className="text-3xl font-bold">
+        {t('workerSearch.title')}
+      </h1>
+
       <p className="mt-2 text-slate-600">
-        Search available workers by skill and location.
+        {t('workerSearch.subtitle')}
       </p>
 
       <form
         onSubmit={submit}
         className="card mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
-        aria-label="Search workers"
+        aria-label={t('workerSearch.formLabel')}
       >
         <div>
           <label htmlFor="worker-skill" className="label">
-            Skill
+            {t('workerSearch.skill')}
           </label>
           <select
             id="worker-skill"
@@ -54,7 +60,7 @@ export default function WorkerSearch() {
             value={skill}
             onChange={(e) => setSkill(e.target.value)}
           >
-            <option value="">Any skill</option>
+            <option value="">{t('workerSearch.anySkill')}</option>
             {SKILLS.map((item) => (
               <option key={item}>{item}</option>
             ))}
@@ -63,45 +69,48 @@ export default function WorkerSearch() {
 
         <div>
           <label htmlFor="worker-location" className="label">
-            Location
+            {t('workerSearch.location')}
           </label>
           <input
             id="worker-location"
             className="input"
             value={location}
             onChange={(e) => setLocation(e.target.value)}
-            placeholder="Vijayawada"
+            placeholder={t('workerSearch.locationPlaceholder')}
           />
         </div>
 
-        <div className="flex items-end gap-2">
+        <div className="flex flex-wrap items-end gap-2">
           <button type="submit" className="btn-primary flex-1">
             <Search size={18} aria-hidden />
-            Search
+            {t('workerSearch.search')}
           </button>
-
           <button type="button" onClick={clear} className="btn-outline">
-            Clear
+            {t('workerSearch.clear')}
           </button>
         </div>
       </form>
 
       <div className="mt-6">
-        {loading && <LoadingSpinner label="Loading workers..." />}
+        {loading && (
+          <LoadingSpinner label={t('workerSearch.loading')} />
+        )}
 
-        {error && <ErrorMessage message={error} onRetry={reload} />}
+        {error && (
+          <ErrorMessage message={error} onRetry={reload} />
+        )}
 
         {!loading && !error && data && data.length === 0 && (
           <EmptyState
-            title="No workers found"
-            text="Try a different skill or location."
+            title={t('workerSearch.emptyTitle')}
+            text={t('workerSearch.emptyMessage')}
           />
         )}
 
         {!loading && !error && data && data.length > 0 && (
           <>
             <p className="mb-3 text-slate-600">
-              {data.length} worker{data.length > 1 ? 's' : ''} found
+              {t('workerSearch.results', { count: data.length })}
             </p>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
