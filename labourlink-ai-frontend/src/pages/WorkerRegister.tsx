@@ -1,5 +1,7 @@
+
 import { useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 import Field, { fieldProps } from '../components/Field';
 import ErrorMessage from '../components/ErrorMessage';
@@ -36,6 +38,8 @@ type K =
   | 'location';
 
 export default function WorkerRegister() {
+  const { t } = useTranslation();
+
   const [f, setF] = useState({
     name: '',
     phone: '',
@@ -56,49 +60,37 @@ export default function WorkerRegister() {
     e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-
-    setF((p) => ({
-      ...p,
-      [name]: value,
-    }));
+    setF((p) => ({ ...p, [name]: value }));
   };
 
   async function submit(e: FormEvent) {
     e.preventDefault();
 
     const errs = clean<K>({
-      name: checkRequired(f.name, 'Full name'),
-
+      name: checkRequired(f.name, t('workerRegister.fullName')),
       phone: checkPhone(f.phone),
-
       password:
         f.password.length < 6
-          ? 'Password must be at least 6 characters'
+          ? t('workerRegister.passwordError')
           : undefined,
-
       confirmPassword:
         f.confirmPassword !== f.password
-          ? 'Passwords do not match'
+          ? t('workerRegister.passwordMismatch')
           : undefined,
-
-      skill: checkRequired(f.skill, 'Skill'),
-
+      skill: checkRequired(f.skill, t('workerRegister.skill')),
       experience: checkNonNegative(
         f.experience,
-        'Experience'
+        t('workerRegister.experience')
       ),
-
       location: checkRequired(
         f.location,
-        'Location'
+        t('workerRegister.location')
       ),
     });
 
     setErrors(errs);
 
-    if (Object.keys(errs).length) {
-      return;
-    }
+    if (Object.keys(errs).length) return;
 
     setBusy(true);
     setApiError(null);
@@ -130,27 +122,20 @@ export default function WorkerRegister() {
           className="card border-green-300 bg-green-50 text-center"
         >
           <h1 className="text-2xl font-bold text-green-800">
-            Registration complete
+            {t('workerRegister.registrationComplete')}
           </h1>
 
           <p className="mt-2">
-            Your worker account has been created successfully.
-            You can now log in and look for work.
+            {t('workerRegister.successMessage')}
           </p>
 
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <Link
-              to="/worker/login"
-              className="btn-primary"
-            >
-              Worker Login
+            <Link to="/worker/login" className="btn-primary">
+              {t('workerRegister.workerLogin')}
             </Link>
 
-            <Link
-              to="/jobs"
-              className="btn-outline"
-            >
-              Find Work
+            <Link to="/jobs" className="btn-outline">
+              {t('workerRegister.findWork')}
             </Link>
           </div>
         </div>
@@ -161,11 +146,11 @@ export default function WorkerRegister() {
   return (
     <div className="mx-auto max-w-xl px-4 py-10">
       <h1 className="text-3xl font-bold">
-        Register as Worker
+        {t('workerRegister.title')}
       </h1>
 
       <p className="mt-1 text-slate-600">
-        Create your account so contractors can find you.
+        {t('workerRegister.description')}
       </p>
 
       <form
@@ -173,13 +158,11 @@ export default function WorkerRegister() {
         noValidate
         className="card mt-6 space-y-5"
       >
-        {apiError && (
-          <ErrorMessage message={apiError} />
-        )}
+        {apiError && <ErrorMessage message={apiError} />}
 
         <Field
           id="name"
-          label="Full Name"
+          label={t('workerRegister.fullName')}
           error={errors.name}
         >
           <input
@@ -193,9 +176,9 @@ export default function WorkerRegister() {
 
         <Field
           id="phone"
-          label="Phone Number"
+          label={t('workerRegister.phone')}
           error={errors.phone}
-          hint="This will be your login username"
+          hint={t('workerRegister.phoneHint')}
         >
           <input
             {...fieldProps('phone', errors.phone)}
@@ -210,15 +193,12 @@ export default function WorkerRegister() {
 
         <Field
           id="password"
-          label="Password"
+          label={t('workerRegister.password')}
           error={errors.password}
-          hint="At least 6 characters"
+          hint={t('workerRegister.passwordHint')}
         >
           <input
-            {...fieldProps(
-              'password',
-              errors.password
-            )}
+            {...fieldProps('password', errors.password)}
             name="password"
             type="password"
             value={f.password}
@@ -229,14 +209,11 @@ export default function WorkerRegister() {
 
         <Field
           id="confirmPassword"
-          label="Confirm Password"
+          label={t('workerRegister.confirmPassword')}
           error={errors.confirmPassword}
         >
           <input
-            {...fieldProps(
-              'confirmPassword',
-              errors.confirmPassword
-            )}
+            {...fieldProps('confirmPassword', errors.confirmPassword)}
             name="confirmPassword"
             type="password"
             value={f.confirmPassword}
@@ -247,25 +224,22 @@ export default function WorkerRegister() {
 
         <Field
           id="skill"
-          label="Skill"
+          label={t('workerRegister.skill')}
           error={errors.skill}
         >
           <select
-            {...fieldProps(
-              'skill',
-              errors.skill
-            )}
+            {...fieldProps('skill', errors.skill)}
             name="skill"
             value={f.skill}
             onChange={on}
           >
             <option value="">
-              Choose your skill
+              {t('workerRegister.chooseSkill')}
             </option>
 
             {SKILLS.map((s) => (
               <option key={s} value={s}>
-                {s}
+                {t(`workerRegister.skills.${s}`)}
               </option>
             ))}
           </select>
@@ -273,14 +247,11 @@ export default function WorkerRegister() {
 
         <Field
           id="experience"
-          label="Experience (years)"
+          label={t('workerRegister.experience')}
           error={errors.experience}
         >
           <input
-            {...fieldProps(
-              'experience',
-              errors.experience
-            )}
+            {...fieldProps('experience', errors.experience)}
             name="experience"
             type="number"
             min={0}
@@ -292,18 +263,15 @@ export default function WorkerRegister() {
 
         <Field
           id="location"
-          label="Location"
+          label={t('workerRegister.location')}
           error={errors.location}
         >
           <input
-            {...fieldProps(
-              'location',
-              errors.location
-            )}
+            {...fieldProps('location', errors.location)}
             name="location"
             value={f.location}
             onChange={on}
-            placeholder="Example: Benz Circle"
+            placeholder={t('workerRegister.locationPlaceholder')}
           />
         </Field>
 
@@ -320,7 +288,7 @@ export default function WorkerRegister() {
             }
           />
 
-          I am available for work
+          {t('workerRegister.available')}
         </label>
 
         <button
@@ -329,8 +297,8 @@ export default function WorkerRegister() {
           className="btn-accent w-full"
         >
           {busy
-            ? 'Creating account...'
-            : 'Register as Worker'}
+            ? t('workerRegister.creating')
+            : t('workerRegister.register')}
         </button>
       </form>
     </div>

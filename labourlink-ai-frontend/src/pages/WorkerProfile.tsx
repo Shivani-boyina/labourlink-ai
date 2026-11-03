@@ -1,5 +1,7 @@
+
 import { Hammer, MapPin, Clock, Phone } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
 import EmptyState from '../components/EmptyState';
@@ -8,6 +10,7 @@ import { getToken } from '../utils/storage';
 import { useFetch } from '../utils/useFetch';
 
 export default function WorkerProfile() {
+  const { t } = useTranslation();
   const token = getToken();
 
   const { data: worker, loading, error, reload } = useFetch(
@@ -22,18 +25,21 @@ export default function WorkerProfile() {
     return (
       <div className="mx-auto max-w-md px-4 py-10">
         <div className="card text-center">
-          <h1 className="text-2xl font-bold">Worker Login Required</h1>
+          <h1 className="text-2xl font-bold">
+            {t('workerProfile.loginRequired')}
+          </h1>
+
           <p className="mt-2 text-slate-600">
-            Please log in to view your worker profile.
+            {t('workerProfile.loginMessage')}
           </p>
 
           <div className="mt-5 flex flex-col gap-3">
             <Link to="/worker/login" className="btn-primary">
-              Worker Login
+              {t('workerProfile.workerLogin')}
             </Link>
 
             <Link to="/worker/register" className="btn-outline">
-              Register as Worker
+              {t('workerProfile.registerWorker')}
             </Link>
           </div>
         </div>
@@ -44,27 +50,27 @@ export default function WorkerProfile() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold">Worker Profile</h1>
+        <h1 className="text-3xl font-bold">
+          {t('workerProfile.title')}
+        </h1>
+
         <p className="mt-1 text-slate-600">
-          Your LabourLink AI worker profile
+          {t('workerProfile.subtitle')}
         </p>
       </div>
 
       {loading && (
-        <LoadingSpinner label="Loading your profile..." />
+        <LoadingSpinner label={t('workerProfile.loading')} />
       )}
 
       {error && (
-        <ErrorMessage
-          message={error}
-          onRetry={reload}
-        />
+        <ErrorMessage message={error} onRetry={reload} />
       )}
 
       {!loading && !error && !worker && (
         <EmptyState
-          title="Profile not found"
-          text="We could not load your worker profile."
+          title={t('workerProfile.notFound')}
+          text={t('workerProfile.notFoundMessage')}
         />
       )}
 
@@ -78,7 +84,7 @@ export default function WorkerProfile() {
                 </h2>
 
                 <p className="mt-1 text-slate-600">
-                  Worker ID: {worker.workerId}
+                  {t('workerProfile.workerId')}: {worker.workerId}
                 </p>
               </div>
 
@@ -90,8 +96,8 @@ export default function WorkerProfile() {
                 }`}
               >
                 {worker.availability
-                  ? 'Available'
-                  : 'Not available'}
+                  ? t('workerProfile.available')
+                  : t('workerProfile.notAvailable')}
               </span>
             </div>
           </div>
@@ -100,8 +106,9 @@ export default function WorkerProfile() {
             <div className="card">
               <p className="flex items-center gap-2 text-slate-600">
                 <Phone size={18} aria-hidden />
-                Phone
+                {t('workerProfile.phone')}
               </p>
+
               <p className="mt-2 text-lg font-semibold">
                 {worker.phone}
               </p>
@@ -110,8 +117,9 @@ export default function WorkerProfile() {
             <div className="card">
               <p className="flex items-center gap-2 text-slate-600">
                 <Hammer size={18} aria-hidden />
-                Skill
+                {t('workerProfile.skill')}
               </p>
+
               <p className="mt-2 text-lg font-semibold">
                 {worker.skill}
               </p>
@@ -120,31 +128,33 @@ export default function WorkerProfile() {
             <div className="card">
               <p className="flex items-center gap-2 text-slate-600">
                 <Clock size={18} aria-hidden />
-                Experience
+                {t('workerProfile.experience')}
               </p>
+
               <p className="mt-2 text-lg font-semibold">
-                {worker.experience} years
+                {worker.experience} {t('workerProfile.years')}
               </p>
             </div>
 
             <div className="card">
               <p className="flex items-center gap-2 text-slate-600">
                 <MapPin size={18} aria-hidden />
-                Location
+                {t('workerProfile.location')}
               </p>
+
               <p className="mt-2 text-lg font-semibold">
                 {worker.location}
               </p>
             </div>
           </div>
 
-          <div className="mt-6 flex gap-3">
+          <div className="mt-6 flex flex-wrap gap-3">
             <Link to="/worker/dashboard" className="btn-primary">
-              Dashboard
+              {t('dashboard')}
             </Link>
 
             <Link to="/jobs" className="btn-outline">
-              Find Work
+              {t('findWork')}
             </Link>
           </div>
         </>

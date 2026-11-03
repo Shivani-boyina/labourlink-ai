@@ -9,19 +9,19 @@ import type { LoginRequest, Session } from '../types/Auth';
 
 function extractToken(raw: unknown): string | null {
   if (typeof raw === 'string') {
-    const t = raw
+    const token = raw
       .trim()
       .replace(/^"|"$/g, '')
       .replace(/^Bearer\s+/i, '');
 
-    return t.split('.').length === 3 ? t : null;
+    return token.split('.').length === 3 ? token : null;
   }
 
   if (raw && typeof raw === 'object') {
-    const o = raw as Record<string, unknown>;
-    const v = o.token ?? o.jwt ?? o.accessToken;
+    const obj = raw as Record<string, unknown>;
+    const value = obj.token ?? obj.jwt ?? obj.accessToken;
 
-    return typeof v === 'string' ? v : null;
+    return typeof value === 'string' ? value : null;
   }
 
   return null;
@@ -32,24 +32,18 @@ export async function login({
   phone,
   password,
 }: LoginRequest): Promise<Session> {
-
-  const raw = await request<unknown>(
-    '/auth/login',
-    {
-      method: 'POST',
-      form: {
-        phone,
-        password,
-      },
-    }
-  );
+  const raw = await request<unknown>('/auth/login', {
+    method: 'POST',
+    form: {
+      phone,
+      password,
+    },
+  });
 
   const token = extractToken(raw);
 
   if (!token) {
-    throw new Error(
-      'Login response did not contain a token.'
-    );
+    throw new Error('Login response did not contain a token.');
   }
 
   setToken(token);
@@ -61,7 +55,7 @@ export async function login({
     const list = await getContractors();
 
     const me = list.find(
-      (c) => String(c.phone) === phone
+      (contractor) => String(contractor.phone) === phone
     );
 
     if (me) {
@@ -76,6 +70,7 @@ export async function login({
     phone,
     contractorId,
     name,
+    role: 'contractor',
   };
 
   setSession(session);
@@ -88,24 +83,18 @@ export async function workerLogin({
   phone,
   password,
 }: LoginRequest): Promise<Session> {
-
-  const raw = await request<unknown>(
-    '/auth/worker/login',
-    {
-      method: 'POST',
-      form: {
-        phone,
-        password,
-      },
-    }
-  );
+  const raw = await request<unknown>('/auth/worker/login', {
+    method: 'POST',
+    form: {
+      phone,
+      password,
+    },
+  });
 
   const token = extractToken(raw);
 
   if (!token) {
-    throw new Error(
-      'Invalid phone number or password.'
-    );
+    throw new Error('Invalid phone number or password.');
   }
 
   setToken(token);
@@ -114,6 +103,7 @@ export async function workerLogin({
     phone,
     contractorId: null,
     name: 'Worker',
+    role: 'worker',
   };
 
   setSession(session);

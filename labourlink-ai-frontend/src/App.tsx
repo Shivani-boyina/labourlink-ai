@@ -1,8 +1,10 @@
+
 import { Route, Routes } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import ProtectedRoute from './components/ProtectedRoute';
 import { USE_MOCK } from './services/api';
+
 import Home from './pages/Home';
 import Login from './pages/Login';
 import WorkerRegister from './pages/WorkerRegister';
@@ -43,6 +45,7 @@ export default function App() {
       <main id="main" className="flex-1">
         <Routes>
           <Route path="/" element={<Home />} />
+
           <Route path="/login" element={<Login />} />
           <Route path="/worker/login" element={<Login />} />
 
@@ -58,18 +61,26 @@ export default function App() {
 
           <Route
             path="/worker/dashboard"
-            element={<WorkerDashboard />}
+            element={
+              <ProtectedRoute allowedRole="worker">
+                <WorkerDashboard />
+              </ProtectedRoute>
+            }
           />
 
           <Route
             path="/worker/profile"
-            element={<WorkerProfile />}
+            element={
+              <ProtectedRoute allowedRole="worker">
+                <WorkerProfile />
+              </ProtectedRoute>
+            }
           />
 
           <Route
             path="/contractor/dashboard"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRole="contractor">
                 <ContractorDashboard />
               </ProtectedRoute>
             }
@@ -78,7 +89,7 @@ export default function App() {
           <Route
             path="/contractor/profile"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRole="contractor">
                 <ContractorProfile />
               </ProtectedRoute>
             }
@@ -86,12 +97,20 @@ export default function App() {
 
           <Route
             path="/workers/search"
-            element={<WorkerSearch />}
+            element={
+              <ProtectedRoute allowedRole="contractor">
+                <WorkerSearch />
+              </ProtectedRoute>
+            }
           />
 
           <Route
             path="/contractors/search"
-            element={<ContractorSearch />}
+            element={
+              <ProtectedRoute allowedRole="worker">
+                <ContractorSearch />
+              </ProtectedRoute>
+            }
           />
 
           <Route path="/jobs" element={<Jobs />} />
@@ -104,7 +123,7 @@ export default function App() {
           <Route
             path="/jobs/:id/matches"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRole="contractor">
                 <JobMatches />
               </ProtectedRoute>
             }
@@ -113,16 +132,13 @@ export default function App() {
           <Route
             path="/contractor/jobs/create"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRole="contractor">
                 <CreateJob />
               </ProtectedRoute>
             }
           />
 
-          <Route
-            path="*"
-            element={<NotFound />}
-          />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
 

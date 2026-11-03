@@ -1,3 +1,4 @@
+
 import { useState, type FormEvent } from 'react';
 import {
   Link,
@@ -6,75 +7,49 @@ import {
   useNavigate,
 } from 'react-router-dom';
 import { Building2, HardHat } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 import Field, { fieldProps } from '../components/Field';
 import ErrorMessage from '../components/ErrorMessage';
-
 import { useAuth } from '../context/AuthContext';
 import { errorMessage } from '../services/api';
-
-import {
-  checkPhone,
-  clean,
-  type Errors,
-} from '../utils/validation';
+import { checkPhone, clean, type Errors } from '../utils/validation';
 
 type K = 'phone' | 'password';
 
 export default function Login() {
+  const { t } = useTranslation();
   const location = useLocation();
   const nav = useNavigate();
 
-  const isWorkerLoginPage =
-    location.pathname === '/worker/login';
+  const isWorkerLoginPage = location.pathname === '/worker/login';
 
-  const [role, setRole] =
-    useState<'worker' | 'contractor'>(
-      isWorkerLoginPage
-        ? 'worker'
-        : 'contractor'
-    );
+  const [role, setRole] = useState<'worker' | 'contractor'>(
+    isWorkerLoginPage ? 'worker' : 'contractor'
+  );
 
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-
-  const [errors, setErrors] =
-    useState<Errors<K>>({});
-
+  const [errors, setErrors] = useState<Errors<K>>({});
   const [busy, setBusy] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
 
-  const [apiError, setApiError] =
-    useState<string | null>(null);
-
-  const {
-    login,
-    workerLogin,
-    isLoggedIn,
-  } = useAuth();
+  const { login, workerLogin, isLoggedIn } = useAuth();
 
   const from =
-    (location.state as { from?: string } | null)
-      ?.from ??
-    (role === 'worker'
-      ? '/worker/dashboard'
-      : '/contractor/dashboard');
+    (location.state as { from?: string } | null)?.from ??
+    (role === 'worker' ? '/worker/dashboard' : '/contractor/dashboard');
 
   if (isLoggedIn) {
     return (
       <Navigate
-        to={
-          role === 'worker'
-            ? '/worker/dashboard'
-            : '/contractor/dashboard'
-        }
+        to={role === 'worker' ? '/worker/dashboard' : '/contractor/dashboard'}
         replace
       />
     );
   }
 
-  function changeRole(
-    newRole: 'worker' | 'contractor'
-  ) {
+  function changeRole(newRole: 'worker' | 'contractor') {
     setRole(newRole);
     setPhone('');
     setPassword('');
@@ -87,39 +62,22 @@ export default function Login() {
 
     const errs = clean<K>({
       phone: checkPhone(phone),
-      password: password
-        ? undefined
-        : 'Password is required',
+      password: password ? undefined : t('loginPage.passwordRequired'),
     });
 
     setErrors(errs);
-
-    if (Object.keys(errs).length) {
-      return;
-    }
+    if (Object.keys(errs).length) return;
 
     setBusy(true);
     setApiError(null);
 
     try {
       if (role === 'worker') {
-        await workerLogin({
-          phone: phone.trim(),
-          password,
-        });
-
-        nav('/worker/dashboard', {
-          replace: true,
-        });
+        await workerLogin({ phone: phone.trim(), password });
+        nav('/worker/dashboard', { replace: true });
       } else {
-        await login({
-          phone: phone.trim(),
-          password,
-        });
-
-        nav(from, {
-          replace: true,
-        });
+        await login({ phone: phone.trim(), password });
+        nav(from, { replace: true });
       }
     } catch (err) {
       setApiError(errorMessage(err));
@@ -128,9 +86,7 @@ export default function Login() {
     }
   }
 
-  const tab = (
-    r: 'worker' | 'contractor'
-  ) =>
+  const tab = (r: 'worker' | 'contractor') =>
     `flex flex-1 items-center justify-center gap-2 rounded-xl border-2 px-4 py-3 font-semibold ${
       role === r
         ? 'border-navy-800 bg-navy-800 text-white'
@@ -139,26 +95,17 @@ export default function Login() {
 
   return (
     <div className="mx-auto max-w-md px-4 py-10">
-      <h1 className="text-3xl font-bold">
-        Login
-      </h1>
+      <h1 className="text-3xl font-bold">{t('loginPage.title')}</h1>
 
-      <div
-        className="mt-5 flex gap-3"
-        role="group"
-        aria-label="Login as"
-      >
+      <div className="mt-5 flex gap-3" role="group" aria-label={t('loginPage.loginAs')}>
         <button
           type="button"
           className={tab('worker')}
           aria-pressed={role === 'worker'}
           onClick={() => changeRole('worker')}
         >
-          <HardHat
-            size={20}
-            aria-hidden
-          />
-          Worker
+          <HardHat size={20} aria-hidden />
+          {t('loginPage.worker')}
         </button>
 
         <button
@@ -167,38 +114,24 @@ export default function Login() {
           aria-pressed={role === 'contractor'}
           onClick={() => changeRole('contractor')}
         >
-          <Building2
-            size={20}
-            aria-hidden
-          />
-          Contractor
+          <Building2 size={20} aria-hidden />
+          {t('loginPage.contractor')}
         </button>
       </div>
 
-      <form
-        onSubmit={submit}
-        noValidate
-        className="card mt-5 space-y-5"
-      >
-        {apiError && (
-          <ErrorMessage message={apiError} />
-        )}
+      <form onSubmit={submit} noValidate className="card mt-5 space-y-5">
+        {apiError && <ErrorMessage message={apiError} />}
 
         <Field
           id="phone"
-          label="Phone"
+          label={t('loginPage.phone')}
           error={errors.phone}
-          hint="Use the phone number registered with LabourLink AI"
+          hint={t('loginPage.phoneHint')}
         >
           <input
-            {...fieldProps(
-              'phone',
-              errors.phone
-            )}
+            {...fieldProps('phone', errors.phone)}
             value={phone}
-            onChange={(e) =>
-              setPhone(e.target.value)
-            }
+            onChange={(e) => setPhone(e.target.value)}
             inputMode="numeric"
             maxLength={10}
             autoComplete="username"
@@ -207,55 +140,40 @@ export default function Login() {
 
         <Field
           id="password"
-          label="Password"
+          label={t('loginPage.password')}
           error={errors.password}
         >
           <input
-            {...fieldProps(
-              'password',
-              errors.password
-            )}
+            {...fieldProps('password', errors.password)}
             type="password"
             value={password}
-            onChange={(e) =>
-              setPassword(e.target.value)
-            }
+            onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"
           />
         </Field>
 
-        <button
-          type="submit"
-          disabled={busy}
-          className="btn-accent w-full"
-        >
+        <button type="submit" disabled={busy} className="btn-accent w-full">
           {busy
-            ? 'Logging in...'
-            : `Login as ${
-                role === 'worker'
-                  ? 'Worker'
-                  : 'Contractor'
-              }`}
+            ? t('loginPage.loggingIn')
+            : t('loginPage.loginAs', {
+                role: role === 'worker'
+                  ? t('loginPage.worker')
+                  : t('loginPage.contractor'),
+              })}
         </button>
 
         {role === 'worker' ? (
           <p className="text-center text-sm">
-            New worker?{' '}
-            <Link
-              className="font-semibold text-navy-700 underline"
-              to="/worker/register"
-            >
-              Register here
+            {t('loginPage.newWorker')}{' '}
+            <Link className="font-semibold text-navy-700 underline" to="/worker/register">
+              {t('loginPage.registerHere')}
             </Link>
           </p>
         ) : (
           <p className="text-center text-sm">
-            New contractor?{' '}
-            <Link
-              className="font-semibold text-navy-700 underline"
-              to="/contractor/register"
-            >
-              Register here
+            {t('loginPage.newContractor')}{' '}
+            <Link className="font-semibold text-navy-700 underline" to="/contractor/register">
+              {t('loginPage.registerHere')}
             </Link>
           </p>
         )}
