@@ -21,6 +21,17 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     @Override
     public Application applyForJob(Application application) {
+
+        boolean alreadyApplied =
+                applicationRepository.existsByJobIdAndWorkerId(
+                        application.getJobId(),
+                        application.getWorkerId()
+                );
+
+        if (alreadyApplied) {
+            throw new RuntimeException("Worker already applied for this job");
+        }
+
         return applicationRepository.save(application);
     }
 

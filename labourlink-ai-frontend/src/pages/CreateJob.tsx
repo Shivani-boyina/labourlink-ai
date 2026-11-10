@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, type FormEvent } from 'react';
+﻿import { useState, type ChangeEvent, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Field, { fieldProps } from '../components/Field';
 import ErrorMessage from '../components/ErrorMessage';
@@ -14,9 +14,16 @@ export default function CreateJob() {
   const { session } = useAuth();
   const nav = useNavigate();
   const [f, setF] = useState({
-    title: '', description: '', requiredSkill: '', location: '', wagePerDay: '', requiredWorkers: '',
-    status: 'OPEN', contractorId: session?.contractorId != null ? String(session.contractorId) : '',
+    title: '',
+    description: '',
+    requiredSkill: '',
+    location: '',
+    wagePerDay: '',
+    requiredWorkers: '',
+    status: 'OPEN',
+    contractorId: session?.userId != null ? String(session.userId) : '',
   });
+
   const [errors, setErrors] = useState<Errors<K>>({});
   const [busy, setBusy] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -65,10 +72,10 @@ export default function CreateJob() {
             <select {...fieldProps('requiredSkill', errors.requiredSkill)} name="requiredSkill" value={f.requiredSkill} onChange={on}><option value="">Choose skill</option>{SKILLS.map((s) => <option key={s}>{s}</option>)}</select>
           </Field>
           <Field id="location" label="Location" error={errors.location}><input {...fieldProps('location', errors.location)} name="location" value={f.location} onChange={on} placeholder="Benz Circle" /></Field>
-          <Field id="wagePerDay" label="Daily Wage (₹)" error={errors.wagePerDay}><input {...fieldProps('wagePerDay', errors.wagePerDay)} name="wagePerDay" type="number" min={1} value={f.wagePerDay} onChange={on} /></Field>
+          <Field id="wagePerDay" label="Daily Wage (â‚¹)" error={errors.wagePerDay}><input {...fieldProps('wagePerDay', errors.wagePerDay)} name="wagePerDay" type="number" min={1} value={f.wagePerDay} onChange={on} /></Field>
           <Field id="requiredWorkers" label="Workers Needed" error={errors.requiredWorkers}><input {...fieldProps('requiredWorkers', errors.requiredWorkers)} name="requiredWorkers" type="number" min={1} value={f.requiredWorkers} onChange={on} /></Field>
           <Field id="status" label="Status"><select id="status" name="status" className="input" value={f.status} onChange={on}><option value="OPEN">OPEN</option><option value="CLOSED">CLOSED</option></select></Field>
-          <Field id="contractorId" label="Contractor ID" error={errors.contractorId} hint={session?.contractorId != null ? 'Filled from your login' : 'Enter your contractor ID'}>
+          <Field id="contractorId" label="Contractor ID" error={errors.contractorId} hint={session?.userId != null ? 'Filled from your login' : 'Enter your contractor ID'}>
             <input {...fieldProps('contractorId', errors.contractorId)} name="contractorId" type="number" min={1} value={f.contractorId} onChange={on} />
           </Field>
         </div>
