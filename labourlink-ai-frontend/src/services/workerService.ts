@@ -37,3 +37,24 @@ export async function getWorkers(): Promise<Worker[]> {
     )
   );
 }
+
+export async function searchWorkers(
+  skill?: string,
+  location?: string
+): Promise<Worker[]> {
+  if (USE_MOCK) {
+    return MOCK_WORKERS;
+  }
+
+  return asArray<Worker>(
+    await request<unknown>(
+      '/workers/search',
+      {
+        query: {
+          ...(skill ? { skill } : {}),
+          ...(location ? { location } : {}),
+        },
+      }
+    )
+  );
+}

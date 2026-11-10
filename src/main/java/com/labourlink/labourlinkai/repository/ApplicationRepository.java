@@ -8,4 +8,5 @@ import org.springframework.stereotype.Repository;
 public interface ApplicationRepository extends JpaRepository<Application, Long> {
 
     long countByJobIdAndStatus(Long jobId, String status);
+    boolean existsByJobIdAndWorkerId(Long jobId, Long workerId);
 }

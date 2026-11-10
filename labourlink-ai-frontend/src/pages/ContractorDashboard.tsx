@@ -12,7 +12,7 @@ import { useFetch } from '../utils/useFetch';
 
 export default function ContractorDashboard() {
   const { session } = useAuth();
-  const cid = session?.contractorId ?? null;
+  const cid = session?.userId ?? null;
   const [actionError, setActionError] = useState<string | null>(null);
 
   const { data, loading, error, reload } = useFetch(async () => {

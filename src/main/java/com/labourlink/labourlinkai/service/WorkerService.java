@@ -11,4 +11,6 @@ public interface WorkerService {
     List<Worker> getAllWorkers();
 
     Worker getWorkerByPhone(String phone);
+
+    List<Worker> searchWorkers(String skill, String location);
 }

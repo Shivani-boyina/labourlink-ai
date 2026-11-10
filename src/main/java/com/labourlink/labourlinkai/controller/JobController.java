@@ -1,3 +1,4 @@
+
 package com.labourlink.labourlinkai.controller;
 
 import com.labourlink.labourlinkai.dto.JobMatchDTO;
@@ -5,6 +6,7 @@ import com.labourlink.labourlinkai.dto.JobSearchDTO;
 import com.labourlink.labourlinkai.entity.Job;
 import com.labourlink.labourlinkai.service.JobService;
 
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,7 +21,7 @@ public class JobController {
 
     // CREATE JOB
     @PostMapping
-    public Job createJob(@RequestBody Job job) {
+    public Job createJob(@Valid @RequestBody Job job) {
         return jobService.createJob(job);
     }
 

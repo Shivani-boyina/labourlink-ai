@@ -1,3 +1,4 @@
+
 import type { Session } from '../types/Auth';
 import type { Worker } from '../types/Worker';
 
@@ -17,7 +18,7 @@ function write(key: string, value: string): void {
   try {
     localStorage.setItem(key, value);
   } catch {
-    /* storage unavailable */
+    // Storage unavailable
   }
 }
 
@@ -25,14 +26,15 @@ function remove(key: string): void {
   try {
     localStorage.removeItem(key);
   } catch {
-    /* storage unavailable */
+    // Storage unavailable
   }
 }
 
 export const getToken = (): string | null => read(TOKEN_KEY);
 
-export const setToken = (token: string): void =>
+export const setToken = (token: string): void => {
   write(TOKEN_KEY, token);
+};
 
 export function getSession(): Session | null {
   const raw = read(SESSION_KEY);
@@ -42,14 +44,61 @@ export function getSession(): Session | null {
   }
 
   try {
-    return JSON.parse(raw) as Session;
+    const session: unknown = JSON.parse(raw);
+
+    if (
+      typeof session !== 'object' ||
+      session === null
+    ) {
+      return null;
+    }
+
+    if (
+      !('userId' in session) ||
+      typeof session.userId !== 'number' ||
+      !Number.isSafeInteger(session.userId) ||
+      session.userId <= 0
+    ) {
+      return null;
+    }
+
+    if (
+      !('phone' in session) ||
+      typeof session.phone !== 'string' ||
+      session.phone.trim() === ''
+    ) {
+      return null;
+    }
+
+    if (
+      !('name' in session) ||
+      typeof session.name !== 'string'
+    ) {
+      return null;
+    }
+
+    if (
+      !('role' in session) ||
+      (session.role !== 'worker' &&
+        session.role !== 'contractor')
+    ) {
+      return null;
+    }
+
+    return {
+      userId: session.userId,
+      phone: session.phone,
+      name: session.name,
+      role: session.role,
+    };
   } catch {
     return null;
   }
 }
 
-export const setSession = (session: Session): void =>
+export const setSession = (session: Session): void => {
   write(SESSION_KEY, JSON.stringify(session));
+};
 
 export function getWorkerProfile(): Worker | null {
   const raw = read(WORKER_PROFILE_KEY);
@@ -65,8 +114,9 @@ export function getWorkerProfile(): Worker | null {
   }
 }
 
-export const setWorkerProfile = (worker: Worker): void =>
+export const setWorkerProfile = (worker: Worker): void => {
   write(WORKER_PROFILE_KEY, JSON.stringify(worker));
+};
 
 export function clearWorkerProfile(): void {
   remove(WORKER_PROFILE_KEY);
