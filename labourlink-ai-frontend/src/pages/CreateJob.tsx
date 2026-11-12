@@ -2,16 +2,14 @@
 import { useNavigate } from 'react-router-dom';
 import Field, { fieldProps } from '../components/Field';
 import ErrorMessage from '../components/ErrorMessage';
-import { useAuth } from '../context/AuthContext';
 import { createJob } from '../services/jobService';
 import { errorMessage } from '../services/api';
 import { checkPositive, checkRequired, clean, type Errors } from '../utils/validation';
 import { SKILLS } from './WorkerRegister';
 
-type K = 'title' | 'requiredSkill' | 'location' | 'wagePerDay' | 'requiredWorkers' | 'contractorId';
+type K = 'title' | 'requiredSkill' | 'location' | 'wagePerDay' | 'requiredWorkers';
 
 export default function CreateJob() {
-  const { session } = useAuth();
   const nav = useNavigate();
   const [f, setF] = useState({
     title: '',
@@ -21,7 +19,6 @@ export default function CreateJob() {
     wagePerDay: '',
     requiredWorkers: '',
     status: 'OPEN',
-    contractorId: session?.userId != null ? String(session.userId) : '',
   });
 
   const [errors, setErrors] = useState<Errors<K>>({});
@@ -39,7 +36,6 @@ export default function CreateJob() {
       location: checkRequired(f.location, 'Location'),
       wagePerDay: checkPositive(f.wagePerDay, 'Daily wage'),
       requiredWorkers: checkPositive(f.requiredWorkers, 'Workers needed'),
-      contractorId: checkPositive(f.contractorId, 'Contractor ID'),
     });
     setErrors(errs);
     if (Object.keys(errs).length) return;
@@ -48,7 +44,7 @@ export default function CreateJob() {
     try {
       await createJob({
         title: f.title.trim(), description: f.description.trim(), requiredSkill: f.requiredSkill, location: f.location.trim(),
-        wagePerDay: Number(f.wagePerDay), requiredWorkers: Number(f.requiredWorkers), status: f.status, contractorId: Number(f.contractorId),
+        wagePerDay: Number(f.wagePerDay), requiredWorkers: Number(f.requiredWorkers), status: f.status,
       });
       setOk(true);
       window.setTimeout(() => nav('/contractor/dashboard'), 1200);
@@ -75,9 +71,6 @@ export default function CreateJob() {
           <Field id="wagePerDay" label="Daily Wage (â‚¹)" error={errors.wagePerDay}><input {...fieldProps('wagePerDay', errors.wagePerDay)} name="wagePerDay" type="number" min={1} value={f.wagePerDay} onChange={on} /></Field>
           <Field id="requiredWorkers" label="Workers Needed" error={errors.requiredWorkers}><input {...fieldProps('requiredWorkers', errors.requiredWorkers)} name="requiredWorkers" type="number" min={1} value={f.requiredWorkers} onChange={on} /></Field>
           <Field id="status" label="Status"><select id="status" name="status" className="input" value={f.status} onChange={on}><option value="OPEN">OPEN</option><option value="CLOSED">CLOSED</option></select></Field>
-          <Field id="contractorId" label="Contractor ID" error={errors.contractorId} hint={session?.userId != null ? 'Filled from your login' : 'Enter your contractor ID'}>
-            <input {...fieldProps('contractorId', errors.contractorId)} name="contractorId" type="number" min={1} value={f.contractorId} onChange={on} />
-          </Field>
         </div>
         <button type="submit" disabled={busy || ok} className="btn-accent w-full">{busy ? 'Creating job...' : 'Create Job'}</button>
       </form>

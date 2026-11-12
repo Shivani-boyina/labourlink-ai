@@ -58,23 +58,52 @@ public class SecurityConfig {
                                 "/auth/login",
                                 "/auth/worker/login",
                                 "/workers/register",
-                                "/contractors/register",
-
-                                // Temporary development endpoint
-                                "/contractors/*/set-password"
+                                "/contractors/register"
                         )
                         .permitAll()
 
-                        // Worker endpoints
+                        // Worker-specific job application endpoints
+                        .requestMatchers(HttpMethod.POST, "/applications")
+                        .hasRole("WORKER")
+
+                        .requestMatchers(HttpMethod.GET, "/applications/my")
+                        .hasRole("WORKER")
+
+                        // Contractor-specific job & application management endpoints
+                        .requestMatchers(HttpMethod.POST, "/jobs")
+                        .hasRole("CONTRACTOR")
+
+                        .requestMatchers(HttpMethod.DELETE, "/jobs/**")
+                        .hasRole("CONTRACTOR")
+
+                        .requestMatchers(HttpMethod.GET, "/jobs/*/matches")
+                        .hasRole("CONTRACTOR")
+
+                        .requestMatchers(HttpMethod.GET, "/applications/job/**")
+                        .hasRole("CONTRACTOR")
+
+                        .requestMatchers(HttpMethod.PUT, "/applications/*/status")
+                        .hasRole("CONTRACTOR")
+
+                        // Worker profile vs worker directory search
+                        .requestMatchers("/workers/me")
+                        .hasRole("WORKER")
+
+                        .requestMatchers(HttpMethod.GET, "/workers", "/workers/search")
+                        .hasAnyRole("WORKER", "CONTRACTOR")
+
                         .requestMatchers("/workers/**")
                         .hasRole("WORKER")
 
-                        // Contractor endpoints
+                        // Contractor directory search
+                        .requestMatchers(HttpMethod.GET, "/contractors", "/contractors/search")
+                        .hasAnyRole("WORKER", "CONTRACTOR")
+
                         .requestMatchers("/contractors/**")
                         .hasRole("CONTRACTOR")
 
-                        // Job endpoints currently require authentication
-                        .requestMatchers("/jobs/**")
+                        // Job browsing and search (both authenticated roles)
+                        .requestMatchers(HttpMethod.GET, "/jobs/**")
                         .authenticated()
 
                         // Everything else
@@ -97,7 +126,7 @@ public class SecurityConfig {
                 new CorsConfiguration();
 
         configuration.setAllowedOriginPatterns(
-                List.of("http://localhost:5173")
+                List.of("http://localhost:5173", "http://localhost:3000", "http://localhost:8080")
         );
 
         configuration.setAllowedMethods(

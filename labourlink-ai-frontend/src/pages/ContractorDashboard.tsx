@@ -9,6 +9,56 @@ import { useAuth } from '../context/AuthContext';
 import { deleteJob, getJobs, getMatches } from '../services/jobService';
 import { errorMessage } from '../services/api';
 import { useFetch } from '../utils/useFetch';
+import { getJobApplicants, updateApplicationStatus } from '../services/applicationService';
+import type { ApplicationRecord } from '../services/applicationService';
+
+function Applicants({ jobId }: { jobId: number }) {
+  const [expanded, setExpanded] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const { data, loading, error, reload } = useFetch(
+    () => expanded ? getJobApplicants(jobId) : Promise.resolve([] as ApplicationRecord[]),
+    [jobId, expanded]
+  );
+
+  async function update(applicationId: number, status: string) {
+    setActionError(null);
+    try {
+      await updateApplicationStatus(applicationId, status);
+      reload();
+    } catch (e) {
+      setActionError(errorMessage(e));
+    }
+  }
+
+  return (
+    <div className="mt-2">
+      <button type="button" className="btn-outline w-full" onClick={() => setExpanded((value) => !value)}>
+        {expanded ? 'Hide Applicants' : 'View Applicants'}
+      </button>
+      {expanded && (
+        <div className="mt-3 space-y-3">
+          {loading && <LoadingSpinner label="Loading applicants..." />}
+          {error && <ErrorMessage message={error} onRetry={reload} />}
+          {actionError && <ErrorMessage message={actionError} />}
+          {!loading && !error && data?.length === 0 && <p className="text-sm text-slate-600">No applications yet.</p>}
+          {data?.map((application) => (
+            <article className="rounded-xl border border-slate-200 p-3" key={application.applicationId}>
+              <p className="font-semibold">{application.workerName}</p>
+              <p className="text-sm text-slate-600">{application.workerSkill} · {application.workerExperience ?? 0} years · {application.workerPhone}</p>
+              <p className="mt-1 text-sm">Status: {application.status}</p>
+              {application.status !== 'ACCEPTED' && application.status !== 'REJECTED' && (
+                <div className="mt-2 flex gap-2">
+                  <button type="button" className="btn-primary flex-1 !py-2" onClick={() => update(application.applicationId, 'ACCEPTED')}>Accept</button>
+                  <button type="button" className="btn-outline flex-1 !py-2" onClick={() => update(application.applicationId, 'REJECTED')}>Reject</button>
+                </div>
+              )}
+            </article>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ContractorDashboard() {
   const { session } = useAuth();
@@ -66,6 +116,7 @@ export default function ContractorDashboard() {
                 <Link to={`/jobs/${j.jobId}/matches`} className="btn-outline flex-1 !py-2">Matching Workers</Link>
                 <button type="button" onClick={() => remove(j.jobId)} className="btn-danger !py-2">Delete</button>
               </div>
+              <Applicants jobId={j.jobId} />
             </div>
           ))}
         </div>
