@@ -13,5 +13,4 @@ public interface ContractorService {
     List<Contractor> searchByLocation(String location);
     void deleteContractor(Long id);
 
-    void setPassword(Long id, String password);
 }

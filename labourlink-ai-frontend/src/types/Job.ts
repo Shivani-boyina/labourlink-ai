@@ -9,7 +9,7 @@ export interface Job {
   status: string;
   contractorId: number;
 }
-export type JobInput = Omit<Job, 'jobId'>;
+export type JobInput = Omit<Job, 'jobId' | 'contractorId'>;
 export interface JobFilters {
   skill?: string;
   location?: string;

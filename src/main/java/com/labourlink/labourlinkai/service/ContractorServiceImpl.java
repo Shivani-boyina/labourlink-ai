@@ -60,24 +60,4 @@ public class ContractorServiceImpl implements ContractorService {
 
         contractorRepository.deleteById(id);
     }
-    @Override
-public void setPassword(Long id, String password) {
-
-    if (password == null || password.isBlank()) {
-        throw new RuntimeException("Password is required");
-    }
-
-    Contractor contractor = contractorRepository.findById(id)
-            .orElseThrow(() ->
-                    new RuntimeException(
-                            "Contractor not found with id: " + id
-                    )
-            );
-
-    contractor.setPassword(
-            passwordEncoder.encode(password)
-    );
-
-    contractorRepository.save(contractor);
-}
 }

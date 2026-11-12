@@ -1,30 +1,44 @@
+
 import { request } from './api';
-import { getContractors } from './contractorService';
 import {
   clearSession,
   setSession,
   setToken,
 } from '../utils/storage';
-import type { LoginRequest, Session } from '../types/Auth';
 
-function extractToken(raw: unknown): string | null {
-  if (typeof raw === 'string') {
-    const t = raw
-      .trim()
-      .replace(/^"|"$/g, '')
-      .replace(/^Bearer\s+/i, '');
+import type {
+  LoginRequest,
+  Session,
+  AuthResponse,
+  UserRole,
+} from '../types/Auth';
 
-    return t.split('.').length === 3 ? t : null;
+function createSession(
+  response: AuthResponse,
+  expectedRole: 'WORKER' | 'CONTRACTOR'
+): Session {
+  if (
+    !response ||
+    typeof response.token !== 'string' ||
+    response.token.trim() === '' ||
+    !Number.isSafeInteger(response.userId) ||
+    response.userId <= 0 ||
+    typeof response.phone !== 'string' ||
+    typeof response.name !== 'string' ||
+    response.role !== expectedRole
+  ) {
+    throw new Error('Invalid authentication response from server.');
   }
 
-  if (raw && typeof raw === 'object') {
-    const o = raw as Record<string, unknown>;
-    const v = o.token ?? o.jwt ?? o.accessToken;
+  const role: UserRole =
+    response.role === 'WORKER' ? 'worker' : 'contractor';
 
-    return typeof v === 'string' ? v : null;
-  }
-
-  return null;
+  return {
+    userId: response.userId,
+    phone: response.phone,
+    name: response.name,
+    role,
+  };
 }
 
 // Contractor login
@@ -32,52 +46,17 @@ export async function login({
   phone,
   password,
 }: LoginRequest): Promise<Session> {
-
-  const raw = await request<unknown>(
+  const response = await request<AuthResponse>(
     '/auth/login',
     {
       method: 'POST',
-      form: {
-        phone,
-        password,
-      },
+      form: { phone, password },
     }
   );
 
-  const token = extractToken(raw);
+  const session = createSession(response, 'CONTRACTOR');
 
-  if (!token) {
-    throw new Error(
-      'Login response did not contain a token.'
-    );
-  }
-
-  setToken(token);
-
-  let contractorId: number | null = null;
-  let name = 'Contractor';
-
-  try {
-    const list = await getContractors();
-
-    const me = list.find(
-      (c) => String(c.phone) === phone
-    );
-
-    if (me) {
-      contractorId = me.contractorId;
-      name = me.contractorName;
-    }
-  } catch {
-    // Profile lookup is optional.
-  }
-
-  const session: Session = {
-    phone,
-    contractorId,
-    name,
-  };
-
+  setToken(response.token);
   setSession(session);
 
   return session;
@@ -88,34 +67,17 @@ export async function workerLogin({
   phone,
   password,
 }: LoginRequest): Promise<Session> {
-
-  const raw = await request<unknown>(
+  const response = await request<AuthResponse>(
     '/auth/worker/login',
     {
       method: 'POST',
-      form: {
-        phone,
-        password,
-      },
+      form: { phone, password },
     }
   );
 
-  const token = extractToken(raw);
+  const session = createSession(response, 'WORKER');
 
-  if (!token) {
-    throw new Error(
-      'Invalid phone number or password.'
-    );
-  }
-
-  setToken(token);
-
-  const session: Session = {
-    phone,
-    contractorId: null,
-    name: 'Worker',
-  };
-
+  setToken(response.token);
   setSession(session);
 
   return session;
