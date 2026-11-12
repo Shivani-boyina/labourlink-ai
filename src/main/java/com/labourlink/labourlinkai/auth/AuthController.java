@@ -6,35 +6,39 @@ import com.labourlink.labourlinkai.repository.ContractorRepository;
 import com.labourlink.labourlinkai.repository.WorkerRepository;
 import com.labourlink.labourlinkai.security.JwtUtil;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
 
-    @Autowired
-    private ContractorRepository contractorRepository;
-
-    @Autowired
-    private WorkerRepository workerRepository;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
+    private final ContractorRepository contractorRepository;
+    private final WorkerRepository workerRepository;
+    private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
 
-    @Autowired
-    public AuthController(JwtUtil jwtUtil) {
+    public AuthController(
+            ContractorRepository contractorRepository,
+            WorkerRepository workerRepository,
+            PasswordEncoder passwordEncoder,
+            JwtUtil jwtUtil) {
+
+        this.contractorRepository = contractorRepository;
+        this.workerRepository = workerRepository;
+        this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
     }
 
     // Contractor login
     @PostMapping("/login")
-    public String login(
+    public ResponseEntity<?> login(
             @RequestParam String phone,
             @RequestParam String password) {
 
@@ -42,33 +46,39 @@ public class AuthController {
                 contractorRepository.findByPhone(phone);
 
         if (contractor.isEmpty()) {
-            return "Invalid phone number or password";
+            return unauthorized();
         }
 
         Contractor existingContractor = contractor.get();
 
         if (existingContractor.getPassword() == null ||
-                existingContractor.getPassword().isBlank()) {
+                existingContractor.getPassword().isBlank() ||
+                !passwordEncoder.matches(
+                        password,
+                        existingContractor.getPassword())) {
 
-            return "Account requires password setup";
+            return unauthorized();
         }
 
-        if (!passwordEncoder.matches(
-                password,
-                existingContractor.getPassword())) {
-
-            return "Invalid phone number or password";
-        }
-
-        return jwtUtil.generateToken(
+        String token = jwtUtil.generateToken(
                 existingContractor.getPhone(),
                 "CONTRACTOR"
         );
+
+        AuthResponse response = new AuthResponse(
+                token,
+                existingContractor.getContractorId(),
+                existingContractor.getPhone(),
+                existingContractor.getContractorName(),
+                "CONTRACTOR"
+        );
+
+        return ResponseEntity.ok(response);
     }
 
     // Worker login
     @PostMapping("/worker/login")
-    public String workerLogin(
+    public ResponseEntity<?> workerLogin(
             @RequestParam String phone,
             @RequestParam String password) {
 
@@ -76,27 +86,78 @@ public class AuthController {
                 workerRepository.findByPhone(phone);
 
         if (worker.isEmpty()) {
-            return "Invalid phone number or password";
+            return unauthorized();
         }
 
         Worker existingWorker = worker.get();
 
         if (existingWorker.getPassword() == null ||
-                existingWorker.getPassword().isBlank()) {
+                existingWorker.getPassword().isBlank() ||
+                !passwordEncoder.matches(
+                        password,
+                        existingWorker.getPassword())) {
 
-            return "Account requires password setup";
+            return unauthorized();
         }
 
-        if (!passwordEncoder.matches(
-                password,
-                existingWorker.getPassword())) {
-
-            return "Invalid phone number or password";
-        }
-
-        return jwtUtil.generateToken(
+        String token = jwtUtil.generateToken(
                 existingWorker.getPhone(),
                 "WORKER"
         );
+
+        AuthResponse response = new AuthResponse(
+                token,
+                existingWorker.getWorkerId(),
+                existingWorker.getPhone(),
+                existingWorker.getName(),
+                "WORKER"
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
+    // Authenticated user profile lookup
+    @GetMapping("/me")
+    public ResponseEntity<?> getMe(Principal principal) {
+        if (principal == null) {
+            return unauthorized();
+        }
+
+        String phone = principal.getName();
+
+        Optional<Worker> worker = workerRepository.findByPhone(phone);
+        if (worker.isPresent()) {
+            Worker w = worker.get();
+            return ResponseEntity.ok(new AuthResponse(
+                    null,
+                    w.getWorkerId(),
+                    w.getPhone(),
+                    w.getName(),
+                    "WORKER"
+            ));
+        }
+
+        Optional<Contractor> contractor = contractorRepository.findByPhone(phone);
+        if (contractor.isPresent()) {
+            Contractor c = contractor.get();
+            return ResponseEntity.ok(new AuthResponse(
+                    null,
+                    c.getContractorId(),
+                    c.getPhone(),
+                    c.getContractorName(),
+                    "CONTRACTOR"
+            ));
+        }
+
+        return unauthorized();
+    }
+
+    private ResponseEntity<Map<String, String>> unauthorized() {
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of(
+                        "message",
+                        "Invalid phone number or password"
+                ));
     }
 }

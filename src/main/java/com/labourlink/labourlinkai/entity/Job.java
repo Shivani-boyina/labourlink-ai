@@ -1,6 +1,8 @@
 package com.labourlink.labourlinkai.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 
 @Entity
 @Table(name = "jobs")
@@ -18,8 +20,12 @@ public class Job {
 
     private String location;
 
+    @NotNull(message = "Wage is required")
+    @Min(value = 0, message = "Wage cannot be negative")
     private Double wagePerDay;
 
+    @NotNull(message = "Required workers is required")
+    @Min(value = 1, message = "Required workers must be greater than 0")
     private Integer requiredWorkers;
 
     private String status;
