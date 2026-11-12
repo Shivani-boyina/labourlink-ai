@@ -51,7 +51,7 @@ export async function searchJobs(
     return MOCK_JOBS;
   }
 
-  return asArray<Job>(
+  const results = asArray<Job | { job: Job }>(
     await request<unknown>(
       '/jobs/search',
       {
@@ -62,6 +62,7 @@ export async function searchJobs(
       }
     )
   );
+  return results.map((result) => ('job' in result ? result.job : result));
 }
 
 export async function getJob(

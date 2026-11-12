@@ -135,7 +135,7 @@ public class JobServiceImpl implements JobService {
                         "ACCEPTED"
                 );
 
-        return acceptedCount < job.getRequiredWorkers();
+        return job.getRequiredWorkers() != null && acceptedCount < job.getRequiredWorkers();
     }
 
     /**

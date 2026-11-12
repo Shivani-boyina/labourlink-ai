@@ -8,6 +8,7 @@ import ErrorMessage from '../components/ErrorMessage';
 import EmptyState from '../components/EmptyState';
 import { getMyWorker } from '../services/workerService';
 import { searchJobs } from '../services/jobService';
+import { getMyApplications } from '../services/applicationService';
 import { clearSession, getToken } from '../utils/storage';
 import { useFetch } from '../utils/useFetch';
 
@@ -34,6 +35,11 @@ export default function WorkerDashboard() {
           })
         : [],
     [worker?.skill, worker?.location]
+  );
+
+  const applications = useFetch(
+    async () => (token ? getMyApplications() : []),
+    [token]
   );
 
   function logout() {
@@ -182,6 +188,22 @@ export default function WorkerDashboard() {
                 <JobCard key={j.jobId} job={j} />
               ))}
             </div>
+          </div>
+
+          <h2 className="mt-10 text-2xl font-bold">My Applications</h2>
+          {applications.loading && <LoadingSpinner label="Loading your applications..." />}
+          {applications.error && <ErrorMessage message={applications.error} onRetry={applications.reload} />}
+          {!applications.loading && !applications.error && (applications.data?.length ?? 0) === 0 && (
+            <p className="mt-3 text-slate-600">You have not applied to any jobs yet.</p>
+          )}
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {applications.data?.map((application) => (
+              <article key={application.applicationId} className="card">
+                <h3 className="font-bold">{application.jobTitle}</h3>
+                <p className="text-slate-600">{application.jobLocation} · {application.applicationDate}</p>
+                <p className="mt-2 font-semibold">Status: {application.status}</p>
+              </article>
+            ))}
           </div>
         </>
       )}

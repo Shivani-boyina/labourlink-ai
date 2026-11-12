@@ -1,4 +1,5 @@
 import { Link, useParams } from 'react-router-dom';
+import { useState } from 'react';
 import { ArrowLeft, Hammer, IndianRupee, MapPin, Users } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -6,17 +7,37 @@ import ErrorMessage from '../components/ErrorMessage';
 import { StatusBadge } from '../components/JobCard';
 import { useAuth } from '../context/AuthContext';
 import { getJob } from '../services/jobService';
+import { applyForJob } from '../services/applicationService';
+import { errorMessage } from '../services/api';
 import { useFetch } from '../utils/useFetch';
 
 export default function JobDetails() {
   const { id = '' } = useParams();
   const { session } = useAuth();
   const { t } = useTranslation();
+  const [applying, setApplying] = useState(false);
+  const [applicationMessage, setApplicationMessage] = useState<string | null>(null);
+  const [applicationError, setApplicationError] = useState<string | null>(null);
 
   const { data: job, loading, error, reload } = useFetch(
     () => getJob(id),
     [id]
   );
+
+  async function apply() {
+    if (!job) return;
+    setApplying(true);
+    setApplicationError(null);
+    setApplicationMessage(null);
+    try {
+      await applyForJob(job.jobId);
+      setApplicationMessage('Your application was submitted.');
+    } catch (error) {
+      setApplicationError(errorMessage(error));
+    } finally {
+      setApplying(false);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
@@ -85,18 +106,20 @@ export default function JobDetails() {
             </div>
           </dl>
 
-          <div className="mt-6 space-y-2">
-            <button
-              type="button"
-              disabled
-              className="btn-accent w-full sm:w-auto"
-            >
-              {t('jobDetails.apply')}
-            </button>
-            <p className="text-sm text-slate-600">
-              {t('jobDetails.applicationNote')}
-            </p>
-          </div>
+          {session?.role === 'worker' && job.status?.toUpperCase() === 'OPEN' && (
+            <div className="mt-6 space-y-2">
+              <button type="button" disabled={applying} onClick={apply} className="btn-accent w-full sm:w-auto">
+                {applying ? 'Submitting...' : t('jobDetails.apply')}
+              </button>
+              <p className="text-sm text-slate-600">{t('jobDetails.applicationNote')}</p>
+              {applicationMessage && <p role="status" className="text-sm text-green-700">{applicationMessage}</p>}
+              {applicationError && <ErrorMessage message={applicationError} />}
+            </div>
+          )}
+
+          {!session && job.status?.toUpperCase() === 'OPEN' && (
+            <Link to="/worker/login" className="btn-accent mt-6 inline-flex">Log in as a worker to apply</Link>
+          )}
 
           {session && session.role === 'contractor' && session.userId === job.contractorId && (
             <Link

@@ -1,4 +1,3 @@
-
 package com.labourlink.labourlinkai.auth;
 
 import com.labourlink.labourlinkai.entity.Contractor;
@@ -12,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.Map;
 import java.util.Optional;
 
@@ -114,6 +114,42 @@ public class AuthController {
         );
 
         return ResponseEntity.ok(response);
+    }
+
+    // Authenticated user profile lookup
+    @GetMapping("/me")
+    public ResponseEntity<?> getMe(Principal principal) {
+        if (principal == null) {
+            return unauthorized();
+        }
+
+        String phone = principal.getName();
+
+        Optional<Worker> worker = workerRepository.findByPhone(phone);
+        if (worker.isPresent()) {
+            Worker w = worker.get();
+            return ResponseEntity.ok(new AuthResponse(
+                    null,
+                    w.getWorkerId(),
+                    w.getPhone(),
+                    w.getName(),
+                    "WORKER"
+            ));
+        }
+
+        Optional<Contractor> contractor = contractorRepository.findByPhone(phone);
+        if (contractor.isPresent()) {
+            Contractor c = contractor.get();
+            return ResponseEntity.ok(new AuthResponse(
+                    null,
+                    c.getContractorId(),
+                    c.getPhone(),
+                    c.getContractorName(),
+                    "CONTRACTOR"
+            ));
+        }
+
+        return unauthorized();
     }
 
     private ResponseEntity<Map<String, String>> unauthorized() {
