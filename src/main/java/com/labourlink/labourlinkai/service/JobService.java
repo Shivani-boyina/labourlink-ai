@@ -10,6 +10,10 @@ public interface JobService {
 
     Job createJob(Job job);
 
+    Job updateJob(Long id, Job changes);
+
+    Job closeJob(Long id);
+
     List<Job> getAllJobs();
 
     Job getJobById(Long id);
@@ -22,5 +26,7 @@ public interface JobService {
             Double minWage,
             Double maxWage);
 
-    List<JobMatchDTO> findMatchingWorkers(Long jobId);
+    List<JobMatchDTO> findMatchingWorkers(Long jobId, boolean includePrediction);
+
+    List<JobSearchDTO> findRecommendedJobs(String workerPhone);
 }

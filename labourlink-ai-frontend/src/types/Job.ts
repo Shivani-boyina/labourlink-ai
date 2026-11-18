@@ -4,6 +4,13 @@ export interface Job {
   description: string;
   requiredSkill: string;
   location: string;
+  state?: string | null;
+  district?: string | null;
+  category?: string | null;
+  minimumExperience?: number | null;
+  durationDays?: number | null;
+  startDate?: string | null;
+  endDate?: string | null;
   wagePerDay: number;
   requiredWorkers: number;
   status: string;

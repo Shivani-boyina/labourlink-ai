@@ -1,0 +1,29 @@
+{
+    "project": "LabourLinkAI",
+    "model": "Logistic Regression",
+    "cross_validation_folds": 5,
+    "accuracy": 86.0,
+    "precision": 82.62,
+    "recall": 91.6,
+    "f1_score": 86.86,
+    "features": [
+        "worker_category",
+        "worker_location",
+        "worker_state",
+        "worker_district",
+        "experience_years",
+        "worker_rating",
+        "worker_review_count",
+        "allocated_this_month",
+        "jobs_allocated_this_month",
+        "expected_daily_wage",
+        "job_category",
+        "job_location",
+        "job_state",
+        "job_district",
+        "offered_daily_wage",
+        "job_duration_days"
+    ],
+    "target": "match_label",
+    "target_description": "Rule-generated matching label based on skill match, availability and wage compatibility"
+}

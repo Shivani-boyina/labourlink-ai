@@ -4,7 +4,12 @@ import { initReactI18next } from 'react-i18next';
 import en from './locales/en/translation.json';
 import te from './locales/te/translation.json';
 
-const savedLanguage = localStorage.getItem('labourlink-language') || 'en';
+let savedLanguage = 'en';
+try {
+  savedLanguage = localStorage.getItem('labourlink-language') || 'en';
+} catch {
+  // Use English when browser storage is unavailable.
+}
 
 i18n
   .use(initReactI18next)

@@ -26,6 +26,16 @@ public class Contractor {
     @NotBlank(message = "Location is required")
     private String location;
 
+    @Column(length = 100)
+    @jakarta.validation.constraints.Size(max = 100)
+    @jakarta.validation.constraints.Pattern(regexp = "[^\\p{Cc}]*")
+    private String state;
+
+    @Column(length = 100)
+    @jakarta.validation.constraints.Size(max = 100)
+    @jakarta.validation.constraints.Pattern(regexp = "[^\\p{Cc}]*")
+    private String district;
+
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
 
@@ -69,6 +79,12 @@ public class Contractor {
     public void setPhone(String phone) {
         this.phone = phone;
     }
+
+    public String getState() { return state; }
+    public void setState(String state) { this.state = state; }
+
+    public String getDistrict() { return district; }
+    public void setDistrict(String district) { this.district = district; }
 
     public String getLocation() {
         return location;

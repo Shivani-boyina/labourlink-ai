@@ -1,9 +1,11 @@
 package com.labourlink.labourlinkai.controller;
 
 import com.labourlink.labourlinkai.entity.Contractor;
+import com.labourlink.labourlinkai.dto.ContractorRegionUpdate;
 import com.labourlink.labourlinkai.response.ApiResponse;
 import com.labourlink.labourlinkai.response.ContractorResponse;
 import com.labourlink.labourlinkai.service.ContractorService;
+import com.labourlink.labourlinkai.repository.JobRepository;
 
 import jakarta.validation.Valid;
 
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import java.security.Principal;
 
 @RestController
 @RequestMapping("/contractors")
@@ -22,11 +25,29 @@ public class ContractorController {
     @Autowired
     private ContractorService contractorService;
 
+    @Autowired
+    private JobRepository jobRepository;
+
+    @PutMapping("/me/region")
+    public ApiResponse<ContractorResponse> updateRegion(Principal principal, @Valid @RequestBody ContractorRegionUpdate update) {
+        Contractor contractor = contractorService.updateRegion(principal.getName(), update);
+        return new ApiResponse<>("Contractor profile updated successfully", "success", new ContractorResponse(contractor));
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<ContractorResponse>> getMyProfile(Principal principal) {
+        ContractorResponse profile = new ContractorResponse(
+                contractorService.getContractorByPhone(principal.getName()));
+        return ResponseEntity.ok(new ApiResponse<>(
+                "Contractor profile fetched successfully", "success", profile));
+    }
+
     // CREATE
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<ContractorResponse>> registerContractor(
             @Valid @RequestBody Contractor contractor) {
 
+        contractor.setContractorId(null);
         Contractor saved = contractorService.registerContractor(contractor);
 
         ContractorResponse response =
@@ -66,7 +87,16 @@ public class ContractorController {
     // DELETE
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<String>> deleteContractor(
-            @PathVariable Long id) {
+            @PathVariable Long id,
+            Principal principal) {
+
+        Contractor current = contractorService.getContractorByPhone(principal.getName());
+        if (!current.getContractorId().equals(id)) {
+            throw new RuntimeException("Access denied: You can only delete your own account");
+        }
+        if (jobRepository.existsByContractorId(id)) {
+            throw new RuntimeException("Cannot delete a contractor with posted jobs");
+        }
 
         contractorService.deleteContractor(id);
 

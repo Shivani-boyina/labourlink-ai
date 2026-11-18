@@ -665,7 +665,7 @@ import java.util.Date;
 public class JwtUtil {
 
     // Secret key (VERY IMPORTANT)
-    private static final String SECRET = "REDACTED_EXPOSED_JWT_SECRET";
+    private static final String SECRET = "<redacted historical JWT signing key>";
 
     private static final long EXPIRATION_TIME = 1000 * 60 * 60 * 10; // 10 hours
 

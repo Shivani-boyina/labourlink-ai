@@ -1,0 +1,45 @@
+{
+  "project": "LabourLink AI",
+  "purpose": "occupation and skill normalization plus contextual wage references; not match outcome training",
+  "sources": [
+    {
+      "source_id": "nsdc_nos_qp",
+      "steward": "National Skill Development Corporation (India)",
+      "url": "https://nsdcindia.org/nos",
+      "contribution": "Occupation and skill vocabulary, qualification pack/NOS descriptions",
+      "status": "candidate_not_downloaded",
+      "license": "Review the terms for the selected file and linked Sector Skill Council before reuse",
+      "required_metadata": ["source_record_id", "qualification_or_nos_code", "version", "retrieved_at", "checksum"]
+    },
+    {
+      "source_id": "labour_bureau_rural_wages",
+      "steward": "Labour Bureau, Ministry of Labour and Employment, Government of India",
+      "url": "https://labourbureau.gov.in/en/rural-wages",
+      "contribution": "Published aggregate wage context by geography, period, occupation, and sex where available",
+      "status": "partial_extract_collected",
+      "collected_file": "../../labourlinkai.csv",
+      "collected_scope": "25 published Andhra Pradesh occupation rows, survey year 2025-2026, January; numeric and source marker values retained in separate columns",
+      "retrieved_at": "2026-11-13",
+      "license": "Confirm the terms and definitions for the selected release before redistribution or reuse",
+      "limitations": ["Not worker-level wage expectation", "Not a worker-job match label", "Do not merge sex-specific wage statistics into individual profiles"],
+      "required_metadata": ["source_record_id", "state_or_published_geography", "occupation", "wage_period", "currency", "reference_period", "retrieved_at", "checksum"]
+    },
+    {
+      "source_id": "mospi_plfs_calendar_2025",
+      "steward": "National Sample Survey Office, Ministry of Statistics and Programme Implementation, Government of India",
+      "url": "https://microdata.gov.in/NADA/index.php/catalog/284",
+      "metadata_url": "https://microdata.gov.in/NADA/index.php/metadata/export/284/json",
+      "contribution": "Surveyed person-level employment, occupation, industry, and earnings variables for wage/occupation modeling",
+      "status": "recommended_source_requires_registered_download",
+      "reported_persons_surveyed": 1148634,
+      "access_note": "The portal requires a registered login to access files. Review and follow the study data access agreement and current MoSPI dissemination policy.",
+      "limitations": ["Not LabourLink user/job application data", "Not a worker-job recommendation or placement outcome dataset", "Survey-weighted population data; preserve survey design variables as required"],
+      "required_metadata": ["study_reference_id", "codebook_version", "download_date", "file_checksum", "access_agreement", "survey_weight_and_design_fields"]
+    }
+  ],
+  "matching_training_data": {
+    "status": "not_available",
+    "reason": "No verified, consented worker-job outcome dataset is currently present in the repository.",
+    "template": "match_outcomes_template.csv"
+  }
+}

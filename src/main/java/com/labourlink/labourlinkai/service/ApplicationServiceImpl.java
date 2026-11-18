@@ -13,10 +13,14 @@ import com.labourlink.labourlinkai.repository.WorkerRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Isolation;
 
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 @Service
@@ -33,6 +37,9 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     @Autowired
     private ContractorRepository contractorRepository;
+
+    @Autowired
+    private AllocationService allocationService;
 
     private static final Set<String> ALLOWED_STATUSES =
             Set.of("PENDING", "ACCEPTED", "REJECTED");
@@ -55,7 +62,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         }
 
         if (job.getRequiredWorkers() == null || job.getRequiredWorkers() <= 0 ||
-                applicationRepository.countByJobIdAndStatus(job.getJobId(), "ACCEPTED") >= job.getRequiredWorkers()) {
+                applicationRepository.countOccupyingSlots(job.getJobId()) >= job.getRequiredWorkers()) {
             throw new RuntimeException("This job has reached its worker capacity");
         }
 
@@ -81,8 +88,8 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
 
     @Override
-    @Transactional
-    public Application applyForJob(Long jobId, String workerPhone) {
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public ApplicationResponseDTO applyForJob(Long jobId, String workerPhone) {
 
         Job job = jobRepository.findByIdForUpdate(jobId)
                 .orElseThrow(() -> new RuntimeException("Job not found"));
@@ -99,7 +106,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         app.setApplicationDate(LocalDate.now().toString());
         app.setStatus("PENDING");
 
-        return saveApplication(app);
+        return toResponse(saveApplication(app));
     }
 
     @Override
@@ -112,22 +119,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         List<ApplicationResponseDTO> result = new ArrayList<>();
 
         for (Application app : apps) {
-            Job job = jobRepository.findById(app.getJobId()).orElse(null);
-
-            result.add(new ApplicationResponseDTO(
-                    app.getApplicationId(),
-                    app.getJobId(),
-                    job != null ? job.getTitle() : "Unknown Job",
-                    job != null ? job.getLocation() : "Unknown Location",
-                    job != null ? job.getWagePerDay() : null,
-                    worker.getWorkerId(),
-                    worker.getName(),
-                    worker.getPhone(),
-                    worker.getSkill(),
-                    worker.getExperience(),
-                    app.getApplicationDate(),
-                    app.getStatus()
-            ));
+            result.add(toResponse(app));
         }
 
         return result;
@@ -150,22 +142,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         List<ApplicationResponseDTO> result = new ArrayList<>();
 
         for (Application app : apps) {
-            Worker worker = workerRepository.findById(app.getWorkerId()).orElse(null);
-
-            result.add(new ApplicationResponseDTO(
-                    app.getApplicationId(),
-                    job.getJobId(),
-                    job.getTitle(),
-                    job.getLocation(),
-                    job.getWagePerDay(),
-                    app.getWorkerId(),
-                    worker != null ? worker.getName() : "Unknown Worker",
-                    worker != null ? worker.getPhone() : "",
-                    worker != null ? worker.getSkill() : "",
-                    worker != null ? worker.getExperience() : null,
-                    app.getApplicationDate(),
-                    app.getStatus()
-            ));
+            result.add(toResponse(app));
         }
 
         return result;
@@ -177,15 +154,33 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .orElseThrow(() -> new RuntimeException("Application not found"));
     }
 
-    private Application updateStatusLocked(Long applicationId, String status) {
-
-        if (status == null || !ALLOWED_STATUSES.contains(status.toUpperCase())) {
-            throw new RuntimeException("Invalid status. Use PENDING, ACCEPTED, or REJECTED");
+    private ApplicationResponseDTO toResponse(Application application) {
+        Job job = jobRepository.findById(application.getJobId()).orElse(null);
+        Worker worker = workerRepository.findById(application.getWorkerId()).orElse(null);
+        ApplicationResponseDTO response = new ApplicationResponseDTO(
+                application.getApplicationId(),
+                application.getJobId(),
+                job != null ? job.getTitle() : "Unknown Job",
+                job != null ? job.getLocation() : "Unknown Location",
+                job != null ? job.getWagePerDay() : null,
+                application.getWorkerId(),
+                worker != null ? worker.getName() : "Unknown Worker",
+                worker != null ? worker.getPhone() : "",
+                worker != null ? worker.getSkill() : "",
+                worker != null ? worker.getExperience() : null,
+                worker != null ? worker.getLocation() : null,
+                worker != null ? worker.getAvailability() : null,
+                worker != null ? worker.getExpectedWagePerDay() : null,
+                application.getApplicationDate(),
+                application.getStatus());
+        response.setAcceptedAt(application.getAcceptedAt());
+        if ("ACCEPTED".equalsIgnoreCase(application.getStatus())) {
+            response.setAllocationStatus(allocationService.statusForApplication(application.getApplicationId()));
         }
+        return response;
+    }
 
-        Application application = getApplicationById(applicationId);
-        String newStatus = status.toUpperCase();
-
+    private Application updateStatusLocked(Application application, Job job, String newStatus) {
         if (newStatus.equalsIgnoreCase(application.getStatus())) {
             return application;
         }
@@ -193,45 +188,58 @@ public class ApplicationServiceImpl implements ApplicationService {
             throw new RuntimeException("Only pending applications can be changed");
         }
 
-        Job job = jobRepository.findByIdForUpdate(application.getJobId())
-                .orElseThrow(() -> new RuntimeException("Job not found"));
-
         if ("ACCEPTED".equalsIgnoreCase(newStatus)) {
+            if (!"OPEN".equalsIgnoreCase(job.getStatus())) {
+                throw new RuntimeException("This job is closed");
+            }
+            Worker worker = workerRepository.findForUpdate(application.getWorkerId())
+                    .orElseThrow(() -> new IllegalStateException("Worker not found"));
+            if (!Boolean.TRUE.equals(worker.getAvailability())) {
+                throw new IllegalStateException("Worker is no longer eligible for allocation: worker is unavailable");
+            }
             if (job.getRequiredWorkers() == null || job.getRequiredWorkers() <= 0) {
                 throw new RuntimeException("Job worker capacity is not configured correctly");
             }
 
-            long acceptedWorkers =
-                    applicationRepository.countByJobIdAndStatus(
-                            application.getJobId(),
-                            "ACCEPTED"
-                    );
+            long acceptedWorkers = applicationRepository.countOccupyingSlots(job.getJobId());
 
             if (acceptedWorkers >= job.getRequiredWorkers()) {
                 throw new RuntimeException("Job capacity full");
             }
+            application.setAcceptedAt(Instant.now().truncatedTo(ChronoUnit.MICROS));
         }
 
         application.setStatus(newStatus);
-        return applicationRepository.save(application);
+        Application saved = applicationRepository.save(application);
+        if ("ACCEPTED".equals(newStatus)) {
+            allocationService.createForNewAcceptance(saved, job);
+        }
+        return saved;
     }
 
     @Override
-    @Transactional
-    public Application updateStatus(Long applicationId, String status, String contractorPhone) {
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public ApplicationResponseDTO updateStatus(Long applicationId, String status, String contractorPhone) {
+        String newStatus = status == null ? "" : status.toUpperCase(Locale.ROOT);
+        if (!ALLOWED_STATUSES.contains(newStatus)) {
+            throw new RuntimeException("Invalid status. Use PENDING, ACCEPTED, or REJECTED");
+        }
 
         Contractor contractor = contractorRepository.findByPhone(contractorPhone)
                 .orElseThrow(() -> new RuntimeException("Contractor not found"));
 
-        Application application = getApplicationById(applicationId);
-
-        Job job = jobRepository.findById(application.getJobId())
+        Long jobId = applicationRepository.findJobIdByApplicationId(applicationId)
+                .orElseThrow(() -> new RuntimeException("Application not found"));
+        Job job = jobRepository.findByIdForUpdate(jobId)
                 .orElseThrow(() -> new RuntimeException("Job not found"));
 
         if (!java.util.Objects.equals(job.getContractorId(), contractor.getContractorId())) {
             throw new RuntimeException("Access denied: You do not own this job");
         }
 
-        return updateStatusLocked(applicationId, status);
+        Application application = applicationRepository.findByIdForUpdate(applicationId)
+                .filter(record -> jobId.equals(record.getJobId()))
+                .orElseThrow(() -> new RuntimeException("Application not found"));
+        return toResponse(updateStatusLocked(application, job, newStatus));
     }
 }

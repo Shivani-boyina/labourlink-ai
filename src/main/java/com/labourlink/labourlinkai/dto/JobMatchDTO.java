@@ -1,5 +1,8 @@
 package com.labourlink.labourlinkai.dto;
 
+import com.labourlink.labourlinkai.integration.MLMatchScoring;
+import java.util.List;
+
 public class JobMatchDTO {
 
     private Long workerId;
@@ -10,6 +13,10 @@ public class JobMatchDTO {
     private String location;
     private Boolean availability;
     private String matchReason;
+    private Double averageRating;
+    private long reviewCount;
+    private MLMatchScoring.Result recommendation;
+    private List<String> matchingReasons;
 
     public JobMatchDTO() {
     }
@@ -92,6 +99,21 @@ public class JobMatchDTO {
 
     public String getMatchReason() {
         return matchReason;
+    }
+
+    public Double getAverageRating() { return averageRating; }
+    public long getReviewCount() { return reviewCount; }
+    public MLMatchScoring.Result getRecommendation() { return recommendation; }
+    public List<String> getMatchingReasons() { return matchingReasons; }
+
+    public void applyRecommendation(MLMatchScoring.Result result, List<String> reasons) {
+        recommendation = result;
+        matchingReasons = reasons;
+    }
+
+    public void applyRating(Double average, long count) {
+        averageRating = average;
+        reviewCount = count;
     }
 
     public void setMatchReason(String matchReason) {

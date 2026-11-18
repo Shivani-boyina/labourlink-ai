@@ -9,6 +9,8 @@ public class ContractorResponse {
     private String companyName;
     private String phone;
     private String location;
+    private String state;
+    private String district;
 
     public ContractorResponse() {
     }
@@ -19,6 +21,8 @@ public class ContractorResponse {
         this.companyName = contractor.getCompanyName();
         this.phone = contractor.getPhone();
         this.location = contractor.getLocation();
+        this.state = contractor.getState();
+        this.district = contractor.getDistrict();
     }
 
     public Long getContractorId() {
@@ -56,6 +60,9 @@ public class ContractorResponse {
     public String getLocation() {
         return location;
     }
+
+    public String getState() { return state; }
+    public String getDistrict() { return district; }
 
     public void setLocation(String location) {
         this.location = location;

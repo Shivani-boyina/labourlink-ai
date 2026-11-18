@@ -1,6 +1,7 @@
 package com.labourlink.labourlinkai.entity;
 
 import jakarta.persistence.*;
+import java.time.Instant;
 
 @Entity
 @Table(name = "applications")
@@ -17,6 +18,9 @@ public class Application {
     private String applicationDate;
 
     private String status;
+
+    @Column(name = "accepted_at", columnDefinition = "datetime(6)")
+    private Instant acceptedAt;
 
     public Application() {
     }
@@ -65,6 +69,9 @@ public class Application {
     public String getStatus() {
         return status;
     }
+
+    public Instant getAcceptedAt() { return acceptedAt; }
+    public void setAcceptedAt(Instant acceptedAt) { this.acceptedAt = acceptedAt; }
 
     public void setStatus(String status) {
         this.status = status;

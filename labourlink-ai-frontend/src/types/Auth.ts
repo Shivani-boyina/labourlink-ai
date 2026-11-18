@@ -20,3 +20,11 @@ export interface AuthResponse {
   name: string;
   role: 'WORKER' | 'CONTRACTOR';
 }
+
+export interface AuthProfileResponse {
+  token: null;
+  userId: number;
+  phone: string;
+  name: string;
+  role: 'WORKER' | 'CONTRACTOR';
+}

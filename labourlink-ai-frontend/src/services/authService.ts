@@ -11,6 +11,7 @@ import type {
   Session,
   AuthResponse,
   UserRole,
+  AuthProfileResponse,
 } from '../types/Auth';
 
 function createSession(
@@ -81,6 +82,26 @@ export async function workerLogin({
   setSession(session);
 
   return session;
+}
+
+export async function getCurrentSession(): Promise<Session> {
+  const response = await request<AuthProfileResponse>('/auth/me', { auth: true });
+  if (
+    !response ||
+    !Number.isSafeInteger(response.userId) || response.userId <= 0 ||
+    typeof response.phone !== 'string' || response.phone.trim() === '' ||
+    typeof response.name !== 'string' ||
+    (response.role !== 'WORKER' && response.role !== 'CONTRACTOR')
+  ) {
+    throw new Error('Invalid authentication profile response from server.');
+  }
+
+  return {
+    userId: response.userId,
+    phone: response.phone,
+    name: response.name,
+    role: response.role === 'WORKER' ? 'worker' : 'contractor',
+  };
 }
 
 export const logout = (): void => {

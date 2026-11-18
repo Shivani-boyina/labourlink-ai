@@ -2,6 +2,8 @@ package com.labourlink.labourlinkai.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.DispatcherType;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -46,7 +48,16 @@ public class SecurityConfig {
                         )
                 )
 
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((request, response, authException) ->
+                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED))
+                )
+
                 .authorizeHttpRequests(auth -> auth
+
+                        // Preserve the original status when the servlet container renders an error.
+                        .dispatcherTypeMatchers(DispatcherType.ERROR)
+                        .permitAll()
 
                         // Browser preflight
                         .requestMatchers(HttpMethod.OPTIONS, "/**")
@@ -55,6 +66,7 @@ public class SecurityConfig {
                         // Public endpoints
                         .requestMatchers(
                                 "/",
+                                "/api/chat",
                                 "/auth/login",
                                 "/auth/worker/login",
                                 "/workers/register",
@@ -63,14 +75,51 @@ public class SecurityConfig {
                         .permitAll()
 
                         // Worker-specific job application endpoints
+                        .requestMatchers("/analytics/**").hasRole("CONTRACTOR")
                         .requestMatchers(HttpMethod.POST, "/applications")
                         .hasRole("WORKER")
 
-                        .requestMatchers(HttpMethod.GET, "/applications/my")
+                        .requestMatchers(HttpMethod.GET, "/applications/my", "/applications/history/archived")
                         .hasRole("WORKER")
+
+                        .requestMatchers(HttpMethod.GET, "/jobs/recommendations/me")
+                        .hasRole("WORKER")
+
+                        .requestMatchers(HttpMethod.GET, "/allocations/worker", "/allocations/worker/**")
+                        .hasRole("WORKER")
+
+                        .requestMatchers("/allocations/contractor", "/allocations/contractor/**")
+                        .hasRole("CONTRACTOR")
+
+                        .requestMatchers("/allocations/**")
+                        .denyAll()
+
+                        .requestMatchers("/replacements/worker/**")
+                        .hasRole("WORKER")
+
+                        .requestMatchers("/replacements/contractor/**")
+                        .hasRole("CONTRACTOR")
+
+                        .requestMatchers("/replacements/**")
+                        .denyAll()
+
+                        .requestMatchers(HttpMethod.GET, "/reviews/worker")
+                        .hasRole("WORKER")
+
+                        .requestMatchers("/reviews/contractor", "/reviews/contractor/**")
+                        .hasRole("CONTRACTOR")
+
+                        .requestMatchers("/reviews/**")
+                        .denyAll()
 
                         // Contractor-specific job & application management endpoints
                         .requestMatchers(HttpMethod.POST, "/jobs")
+                        .hasRole("CONTRACTOR")
+
+                        .requestMatchers(HttpMethod.PUT, "/jobs/**")
+                        .hasRole("CONTRACTOR")
+
+                        .requestMatchers(HttpMethod.PATCH, "/jobs/*/close")
                         .hasRole("CONTRACTOR")
 
                         .requestMatchers(HttpMethod.DELETE, "/jobs/**")
@@ -79,7 +128,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/jobs/*/matches")
                         .hasRole("CONTRACTOR")
 
-                        .requestMatchers(HttpMethod.GET, "/applications/job/**")
+                        .requestMatchers(HttpMethod.GET, "/applications/job/**", "/applications/history/contractor")
                         .hasRole("CONTRACTOR")
 
                         .requestMatchers(HttpMethod.PUT, "/applications/*/status")
@@ -90,7 +139,7 @@ public class SecurityConfig {
                         .hasRole("WORKER")
 
                         .requestMatchers(HttpMethod.GET, "/workers", "/workers/search")
-                        .hasAnyRole("WORKER", "CONTRACTOR")
+                        .hasRole("CONTRACTOR")
 
                         .requestMatchers("/workers/**")
                         .hasRole("WORKER")
@@ -102,9 +151,22 @@ public class SecurityConfig {
                         .requestMatchers("/contractors/**")
                         .hasRole("CONTRACTOR")
 
-                        // Job browsing and search (both authenticated roles)
+                        // Published job search can be browsed before login; mutations remain role protected.
                         .requestMatchers(HttpMethod.GET, "/jobs/**")
-                        .authenticated()
+                        .permitAll()
+
+                        // Legacy labour records have no account ownership model: reads are contractor-only and writes are disabled.
+                        .requestMatchers(HttpMethod.POST, "/labours/**")
+                        .denyAll()
+
+                        .requestMatchers(HttpMethod.PUT, "/labours/**")
+                        .denyAll()
+
+                        .requestMatchers(HttpMethod.DELETE, "/labours/**")
+                        .denyAll()
+
+                        .requestMatchers(HttpMethod.GET, "/labours/**")
+                        .hasRole("CONTRACTOR")
 
                         // Everything else
                         .anyRequest()

@@ -3,24 +3,80 @@
 @tailwind utilities;
 
 @layer base {
-  body { @apply bg-paper text-slate-800 font-sans text-[17px] antialiased; }
-  h1, h2, h3 { @apply font-display text-navy-900; }
-  :focus-visible { @apply outline outline-[3px] outline-offset-2 outline-safety-500; }
+  html {
+    font-size: 16px;
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-paper text-slate-800 font-sans text-base antialiased min-h-screen flex flex-col selection:bg-blue-100 selection:text-blue-900;
+  }
+  h1, h2, h3, h4 {
+    @apply font-display text-slate-900 tracking-tight font-bold;
+  }
+  :focus-visible {
+    @apply outline outline-[3px] outline-offset-2 outline-blue-600;
+  }
 }
 
 @layer components {
-  .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-base font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60; }
-  .btn-primary { @apply btn bg-navy-800 text-white hover:bg-navy-700; }
-  .btn-accent { @apply btn bg-safety-400 text-navy-900 hover:bg-safety-500; }
-  .btn-outline { @apply btn border-2 border-navy-800 text-navy-800 hover:bg-navy-50; }
-  .btn-danger { @apply btn border-2 border-red-600 text-red-700 hover:bg-red-50; }
-  .card { @apply rounded-2xl border border-slate-200 bg-white p-5 shadow-sm; }
-  .input { @apply w-full rounded-xl border-2 border-slate-300 bg-white px-4 py-3 text-base text-slate-900 placeholder:text-slate-400; }
-  .input-error { @apply border-red-500; }
-  .label { @apply mb-1.5 block text-base font-semibold text-navy-900; }
-  .hazard { background: repeating-linear-gradient(-45deg, #f7b733 0 14px, #122445 14px 28px); }
+  /* Large, touch-friendly, high-contrast buttons */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2.5 rounded-xl px-5 py-3 text-base font-semibold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-60 active:scale-[0.98];
+    min-height: 46px;
+  }
+  .btn-primary {
+    @apply btn bg-blue-700 text-white hover:bg-blue-800 shadow-sm focus:ring-4 focus:ring-blue-100;
+  }
+  .btn-accent {
+    @apply btn bg-blue-600 text-white hover:bg-blue-700 shadow-sm focus:ring-4 focus:ring-blue-100;
+  }
+  .btn-outline {
+    @apply btn border-2 border-blue-700 text-blue-700 bg-white hover:bg-blue-50/80 hover:border-blue-800;
+  }
+  .btn-secondary {
+    @apply btn bg-slate-100 text-slate-800 hover:bg-slate-200;
+  }
+  .btn-success {
+    @apply btn bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm focus:ring-4 focus:ring-emerald-100;
+  }
+  .btn-danger {
+    @apply btn border-2 border-red-500 text-red-700 bg-white hover:bg-red-50 focus:ring-4 focus:ring-red-100;
+  }
+
+  /* Clean, crisp cards */
+  .card {
+    @apply rounded-2xl border border-slate-200/90 bg-white p-5 md:p-6 shadow-card transition-shadow duration-150;
+  }
+  .card-hover {
+    @apply card hover:shadow-hover hover:border-blue-300;
+  }
+
+  /* Large, comfortable form inputs */
+  .input {
+    @apply w-full rounded-xl border-2 border-slate-300 bg-white px-4 py-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-blue-600 focus:outline-none transition-colors;
+    min-height: 48px;
+  }
+  .input-error {
+    @apply border-red-500 focus:border-red-600;
+  }
+  .label {
+    @apply mb-1.5 block text-base font-semibold text-slate-900;
+  }
+
+  /* Clean blue decorative banner replacing harsh construction hazard stripes */
+  .hazard {
+    background: linear-gradient(90deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%);
+  }
+
+  /* Status badge base */
+  .badge {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * { transition: none !important; animation: none !important; }
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
 }

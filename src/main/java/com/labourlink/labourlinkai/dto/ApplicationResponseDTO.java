@@ -1,5 +1,8 @@
 package com.labourlink.labourlinkai.dto;
 
+import java.time.Instant;
+import com.labourlink.labourlinkai.entity.WorkerAllocation;
+
 public class ApplicationResponseDTO {
 
     private Long applicationId;
@@ -12,7 +15,12 @@ public class ApplicationResponseDTO {
     private String workerPhone;
     private String workerSkill;
     private Integer workerExperience;
+    private String workerLocation;
+    private Boolean workerAvailability;
+    private Double workerExpectedWagePerDay;
     private String applicationDate;
+    private Instant acceptedAt;
+    private WorkerAllocation.Status allocationStatus;
     private String status;
 
     public ApplicationResponseDTO() {
@@ -29,6 +37,9 @@ public class ApplicationResponseDTO {
             String workerPhone,
             String workerSkill,
             Integer workerExperience,
+            String workerLocation,
+            Boolean workerAvailability,
+            Double workerExpectedWagePerDay,
             String applicationDate,
             String status) {
 
@@ -42,6 +53,9 @@ public class ApplicationResponseDTO {
         this.workerPhone = workerPhone;
         this.workerSkill = workerSkill;
         this.workerExperience = workerExperience;
+        this.workerLocation = workerLocation;
+        this.workerAvailability = workerAvailability;
+        this.workerExpectedWagePerDay = workerExpectedWagePerDay;
         this.applicationDate = applicationDate;
         this.status = status;
     }
@@ -126,9 +140,21 @@ public class ApplicationResponseDTO {
         this.workerExperience = workerExperience;
     }
 
+    public String getWorkerLocation() { return workerLocation; }
+    public void setWorkerLocation(String workerLocation) { this.workerLocation = workerLocation; }
+    public Boolean getWorkerAvailability() { return workerAvailability; }
+    public void setWorkerAvailability(Boolean workerAvailability) { this.workerAvailability = workerAvailability; }
+    public Double getWorkerExpectedWagePerDay() { return workerExpectedWagePerDay; }
+    public void setWorkerExpectedWagePerDay(Double workerExpectedWagePerDay) { this.workerExpectedWagePerDay = workerExpectedWagePerDay; }
+
     public String getApplicationDate() {
         return applicationDate;
     }
+
+    public Instant getAcceptedAt() { return acceptedAt; }
+    public void setAcceptedAt(Instant acceptedAt) { this.acceptedAt = acceptedAt; }
+    public WorkerAllocation.Status getAllocationStatus() { return allocationStatus; }
+    public void setAllocationStatus(WorkerAllocation.Status allocationStatus) { this.allocationStatus = allocationStatus; }
 
     public void setApplicationDate(String applicationDate) {
         this.applicationDate = applicationDate;

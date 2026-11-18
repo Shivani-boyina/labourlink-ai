@@ -15,7 +15,7 @@ import type {
   JobInput,
 } from '../types/Job';
 
-import type { Worker } from '../types/Worker';
+import type { WorkerMatch } from '../types/Worker';
 
 const hasFilters = (
   f: JobFilters
@@ -65,6 +65,23 @@ export async function searchJobs(
   return results.map((result) => ('job' in result ? result.job : result));
 }
 
+export interface JobRecommendation {
+  job: Job;
+  matchingScore: number;
+  recommendation?: {
+    method: 'ML' | 'RULE_BASED';
+    matchPercentage: number | null;
+    fallbackReason: string | null;
+  } | null;
+}
+
+export async function getMyRecommendations(): Promise<JobRecommendation[]> {
+  if (USE_MOCK) return MOCK_JOBS.map((job) => ({ job, matchingScore: 0 }));
+  return asArray<JobRecommendation>(
+    await request<unknown>('/jobs/recommendations/me', { auth: true })
+  );
+}
+
 export async function getJob(
   id: string
 ): Promise<Job> {
@@ -103,6 +120,19 @@ export const createJob = (
     }
   );
 
+export const updateJob = (id: number, job: JobInput) =>
+  request<Job>(`/jobs/${id}`, {
+    method: 'PUT',
+    body: job,
+    auth: true,
+  });
+
+export const closeJob = (id: number) =>
+  request<Job>(`/jobs/${id}/close`, {
+    method: 'PATCH',
+    auth: true,
+  });
+
 export const deleteJob = (
   id: number
 ) =>
@@ -115,18 +145,20 @@ export const deleteJob = (
   );
 
 export async function getMatches(
-  id: string
-): Promise<Worker[]> {
+  id: string,
+  includePrediction = true
+): Promise<WorkerMatch[]> {
 
   if (USE_MOCK) {
     return MOCK_WORKERS;
   }
 
-  return asArray<Worker>(
+  return asArray<WorkerMatch>(
     await request<unknown>(
       `/jobs/${encodeURIComponent(id)}/matches`,
       {
         auth: true,
+        query: { includePrediction: String(includePrediction) },
       }
     )
   );

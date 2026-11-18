@@ -2,32 +2,34 @@ package com.labourlink.labourlinkai.security;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.security.Keys;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.JwtParser;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
-import java.security.Key;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 import java.util.Date;
 
 @Component
 public class JwtUtil {
 
-    private final String secret;
+    private final SecretKey signingKey;
+    private final JwtParser parser;
     private final long expirationTime;
 
     public JwtUtil(
-            @Value("${app.jwt.secret}") String secret,
+            @Value("${JWT_SECRET:}") String secret,
             @Value("${app.jwt.expiration}") long expirationTime) {
 
-        this.secret = secret;
+        if (secret.isBlank() || secret.getBytes(StandardCharsets.UTF_8).length < 32
+                || "replace_with_a_generated_secret".equals(secret)) {
+            throw new IllegalStateException("JWT_SECRET must be set to a generated key of at least 32 UTF-8 bytes");
+        }
+        this.signingKey = new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+        this.parser = Jwts.parserBuilder().setSigningKey(signingKey).build();
         this.expirationTime = expirationTime;
-    }
-
-    private Key getSigningKey() {
-        return Keys.hmacShaKeyFor(
-                secret.getBytes(StandardCharsets.UTF_8)
-        );
     }
 
     // Generate JWT token with role
@@ -40,16 +42,14 @@ public class JwtUtil {
                 .setExpiration(
                         new Date(System.currentTimeMillis() + expirationTime)
                 )
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .signWith(signingKey, SignatureAlgorithm.HS256)
                 .compact();
     }
 
     // Extract username from JWT
     public String extractUsername(String token) {
 
-        return Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
-                .build()
+        return parser
                 .parseClaimsJws(token)
                 .getBody()
                 .getSubject();
@@ -58,9 +58,7 @@ public class JwtUtil {
     // Extract role from JWT
     public String extractRole(String token) {
 
-        return Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
-                .build()
+        return parser
                 .parseClaimsJws(token)
                 .getBody()
                 .get("role", String.class);
@@ -72,7 +70,7 @@ public class JwtUtil {
         try {
             extractUsername(token);
             return true;
-        } catch (Exception e) {
+        } catch (JwtException | IllegalArgumentException e) {
             return false;
         }
     }

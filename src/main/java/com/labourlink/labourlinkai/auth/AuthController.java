@@ -9,6 +9,7 @@ import com.labourlink.labourlinkai.security.JwtUtil;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
@@ -118,15 +119,20 @@ public class AuthController {
 
     // Authenticated user profile lookup
     @GetMapping("/me")
-    public ResponseEntity<?> getMe(Principal principal) {
-        if (principal == null) {
+    public ResponseEntity<?> getMe(Principal principal, Authentication authentication) {
+        if (principal == null || authentication == null) {
             return unauthorized();
         }
 
         String phone = principal.getName();
+        boolean workerRole = authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_WORKER".equals(authority.getAuthority()));
+        boolean contractorRole = authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_CONTRACTOR".equals(authority.getAuthority()));
 
-        Optional<Worker> worker = workerRepository.findByPhone(phone);
-        if (worker.isPresent()) {
+        if (workerRole) {
+            Optional<Worker> worker = workerRepository.findByPhone(phone);
+            if (worker.isEmpty()) return unauthorized();
             Worker w = worker.get();
             return ResponseEntity.ok(new AuthResponse(
                     null,
@@ -137,8 +143,9 @@ public class AuthController {
             ));
         }
 
-        Optional<Contractor> contractor = contractorRepository.findByPhone(phone);
-        if (contractor.isPresent()) {
+        if (contractorRole) {
+            Optional<Contractor> contractor = contractorRepository.findByPhone(phone);
+            if (contractor.isEmpty()) return unauthorized();
             Contractor c = contractor.get();
             return ResponseEntity.ok(new AuthResponse(
                     null,

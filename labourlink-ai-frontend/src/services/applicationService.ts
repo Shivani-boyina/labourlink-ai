@@ -1,4 +1,5 @@
 import { request } from './api';
+import type { AllocationStatus } from './allocationService';
 
 export interface ApplicationRecord {
   applicationId: number;
@@ -11,9 +12,39 @@ export interface ApplicationRecord {
   workerPhone: string;
   workerSkill: string;
   workerExperience: number | null;
-  applicationDate: string;
-  status: string;
+  workerLocation: string | null;
+  workerAvailability: boolean | null;
+  workerExpectedWagePerDay: number | null;
+  applicationDate: string | null;
+  status: string | null;
+  acceptedAt?: string | null;
+  allocationStatus?: AllocationStatus | null;
 }
+
+export interface ArchivedApplicationRecord {
+  applicationId: number;
+  jobId: number;
+  jobTitle: string | null;
+  applicationDate: string | null;
+  status: string | null;
+}
+
+export interface HiringSelection {
+  applicationId: number;
+  jobId: number;
+  jobTitle: string;
+  workerId: number;
+  workerName: string;
+  workerSkill: string;
+  applicationDate: string | null;
+  acceptedAt: string | null;
+}
+
+export const getArchivedApplications = () =>
+  request<ArchivedApplicationRecord[]>('/applications/history/archived', { auth: true });
+
+export const getContractorSelections = () =>
+  request<HiringSelection[]>('/applications/history/contractor', { auth: true });
 
 export const applyForJob = (jobId: number) =>
   request('/applications', {

@@ -1,8 +1,11 @@
 package com.labourlink.labourlinkai.controller;
 
 import com.labourlink.labourlinkai.dto.ApplicationResponseDTO;
-import com.labourlink.labourlinkai.entity.Application;
+import com.labourlink.labourlinkai.dto.ArchivedApplicationDTO;
+import com.labourlink.labourlinkai.dto.HiringSelectionDTO;
+import com.labourlink.labourlinkai.dto.ApplyForJobRequest;
 import com.labourlink.labourlinkai.service.ApplicationService;
+import com.labourlink.labourlinkai.service.HiringHistoryService;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -17,14 +20,27 @@ public class ApplicationController {
     @Autowired
     private ApplicationService applicationService;
 
+    @Autowired
+    private HiringHistoryService hiringHistoryService;
+
+    @GetMapping("/history/contractor")
+    public List<HiringSelectionDTO> contractorSelections(Principal principal) {
+        return hiringHistoryService.contractorSelections(principal.getName());
+    }
+
+    @GetMapping("/history/archived")
+    public List<ArchivedApplicationDTO> archivedApplications(Principal principal) {
+        return hiringHistoryService.workerArchive(principal.getName());
+    }
+
     // Worker applies for a job (identity derived from Principal)
     @PostMapping
-    public Application applyForJob(
-            @RequestBody(required = false) Application application,
+    public ApplicationResponseDTO applyForJob(
+            @RequestBody(required = false) ApplyForJobRequest request,
             @RequestParam(required = false) Long jobId,
             Principal principal) {
 
-        Long targetJobId = (jobId != null) ? jobId : (application != null ? application.getJobId() : null);
+        Long targetJobId = (jobId != null) ? jobId : (request != null ? request.getJobId() : null);
         if (targetJobId == null) {
             throw new RuntimeException("Job ID is required");
         }
@@ -54,7 +70,7 @@ public class ApplicationController {
 
     // Contractor updates status (verifies ownership)
     @PutMapping("/{id}/status")
-    public Application updateStatus(
+    public ApplicationResponseDTO updateStatus(
             @PathVariable Long id,
             @RequestParam String status,
             Principal principal) {

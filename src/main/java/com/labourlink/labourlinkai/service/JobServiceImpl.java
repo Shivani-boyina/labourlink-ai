@@ -10,9 +10,12 @@ import com.labourlink.labourlinkai.repository.WorkerRepository;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Isolation;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 public class JobServiceImpl implements JobService {
@@ -25,9 +28,51 @@ public class JobServiceImpl implements JobService {
 
     @Autowired
     private ApplicationRepository applicationRepository;
+    @Autowired
+    private WorkerMatchingService workerMatching;
 
     @Override
     public Job createJob(Job job) {
+        job.setCategory(ProfileText.optional(job.getCategory()));
+        job.setState(ProfileText.optional(job.getState()));
+        job.setDistrict(ProfileText.optional(job.getDistrict()));
+        return jobRepository.save(job);
+    }
+
+    @Override
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public Job updateJob(Long id, Job changes) {
+        Job job = jobRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new RuntimeException("Job not found"));
+        long acceptedWorkers = applicationRepository.countOccupyingSlots(id);
+        if (changes.getRequiredWorkers() < acceptedWorkers) {
+            throw new RuntimeException("Required workers cannot be lower than accepted workers");
+        }
+
+        job.setTitle(changes.getTitle());
+        job.setDescription(changes.getDescription());
+        job.setRequiredSkill(changes.getRequiredSkill());
+        job.setLocation(changes.getLocation());
+        if (changes.getCategory() != null) job.setCategory(ProfileText.optional(changes.getCategory()));
+        if (changes.getState() != null) job.setState(ProfileText.optional(changes.getState()));
+        if (changes.getDistrict() != null) job.setDistrict(ProfileText.optional(changes.getDistrict()));
+        job.setMinimumExperience(changes.getMinimumExperience());
+        job.setDurationDays(changes.getDurationDays());
+        if (changes.hasScheduleUpdate()) {
+            job.setStartDate(changes.getStartDate());
+            job.setEndDate(changes.getEndDate());
+        }
+        job.setWagePerDay(changes.getWagePerDay());
+        job.setRequiredWorkers(changes.getRequiredWorkers());
+        return jobRepository.save(job);
+    }
+
+    @Override
+    @Transactional
+    public Job closeJob(Long id) {
+        Job job = jobRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new RuntimeException("Job not found"));
+        job.setStatus("CLOSED");
         return jobRepository.save(job);
     }
 
@@ -43,8 +88,14 @@ public class JobServiceImpl implements JobService {
     }
 
     @Override
+    @Transactional
     public void deleteJob(Long id) {
-        jobRepository.deleteById(id);
+        Job job = jobRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new RuntimeException("Job not found"));
+        if (applicationRepository.existsByJobId(id)) {
+            throw new RuntimeException("Cannot delete a job that has applications");
+        }
+        jobRepository.delete(job);
     }
 
     @Override
@@ -129,11 +180,7 @@ public class JobServiceImpl implements JobService {
      */
     private boolean isJobNotFull(Job job) {
 
-        long acceptedCount =
-                applicationRepository.countByJobIdAndStatus(
-                        job.getJobId(),
-                        "ACCEPTED"
-                );
+        long acceptedCount = applicationRepository.countOccupyingSlots(job.getJobId());
 
         return job.getRequiredWorkers() != null && acceptedCount < job.getRequiredWorkers();
     }
@@ -189,76 +236,48 @@ public class JobServiceImpl implements JobService {
         return score;
     }
 
+    @Override
+    public List<JobMatchDTO> findMatchingWorkers(Long jobId, boolean includePrediction) {
+        Job job = getJobById(jobId);
+        if (!"OPEN".equalsIgnoreCase(job.getStatus()) || !isJobNotFull(job)) return List.of();
+        return workerMatching.find(job, includePrediction);
+    }
+
     /**
-     * Finds workers who match a particular job.
-     *
-     * Current matching rules:
-     * 1. Worker must be available.
-     * 2. Worker skill must match the required skill.
-     * 3. Worker location must match the job location.
-     * 4. Workers are ranked by experience.
+     * Explainable rule score over existing profile/job fields:
+     * skill 40, location 25, experience 15, wage fit 20.
+     * Unavailable workers are ineligible. Missing expected wage contributes no wage points.
      */
     @Override
-    public List<JobMatchDTO> findMatchingWorkers(Long jobId) {
+    public List<JobSearchDTO> findRecommendedJobs(String workerPhone) {
+        Worker worker = workerRepository.findByPhone(workerPhone)
+                .orElseThrow(() -> new RuntimeException("Worker not found"));
+        if (!Boolean.TRUE.equals(worker.getAvailability())) return List.of();
 
-        // Step 1: Get the job
-        Job job = getJobById(jobId);
+        return workerMatching.recommend(worker, jobRepository.findByStatus("OPEN").stream()
+                .filter(this::isJobNotFull).toList(), job -> recommendationScore(job, worker));
+    }
 
-        // Step 2: Get all workers
-        List<Worker> workers = workerRepository.findAll();
+    private int recommendationScore(Job job, Worker worker) {
+        int score = 0;
+        if (same(job.getRequiredSkill(), worker.getSkill())) score += 40;
+        if (same(job.getLocation(), worker.getLocation())) score += 25;
 
-        // Step 3: Filter and rank matching workers
-        return workers.stream()
+        Integer minimumExperience = job.getMinimumExperience();
+        if (minimumExperience == null || minimumExperience == 0) score += 15;
+        else if (worker.getExperience() != null && worker.getExperience() >= minimumExperience) score += 15;
+        else if (worker.getExperience() != null) score += Math.max(0, 15 * worker.getExperience() / minimumExperience);
 
-                // Worker must be available
-                .filter(worker ->
-                        Boolean.TRUE.equals(
-                                worker.getAvailability()
-                        )
-                )
+        Double expected = worker.getExpectedWagePerDay();
+        Double offered = job.getWagePerDay();
+        if (expected != null && expected > 0 && offered != null) {
+            score += (int) Math.round(20 * Math.min(1.0, offered / expected));
+        }
+        return score;
+    }
 
-                // Worker skill must match job skill
-                .filter(worker ->
-                        worker.getSkill() != null &&
-                        job.getRequiredSkill() != null &&
-                        worker.getSkill().equalsIgnoreCase(
-                                job.getRequiredSkill()
-                        )
-                )
-
-                // Worker location must match job location
-                .filter(worker ->
-                        worker.getLocation() != null &&
-                        job.getLocation() != null &&
-                        worker.getLocation().equalsIgnoreCase(
-                                job.getLocation()
-                        )
-                )
-
-                // More experienced workers appear first
-                .sorted(
-                        Comparator.comparing(
-                                Worker::getExperience,
-                                Comparator.nullsLast(
-                                        Comparator.reverseOrder()
-                                )
-                        )
-                )
-
-                // Convert Worker into JobMatchDTO
-                .map(worker ->
-                        new JobMatchDTO(
-                                worker.getWorkerId(),
-                                worker.getName(),
-                                worker.getPhone(),
-                                worker.getSkill(),
-                                worker.getExperience(),
-                                worker.getLocation(),
-                                worker.getAvailability(),
-                                "Skill and location match; ranked by experience"
-                        )
-                )
-
-                .toList();
+    private boolean same(String left, String right) {
+        return left != null && right != null && left.trim().toLowerCase(Locale.ROOT)
+                .equals(right.trim().toLowerCase(Locale.ROOT));
     }
 }

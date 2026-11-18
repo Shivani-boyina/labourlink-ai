@@ -1,0 +1,21 @@
+# LabourLink AI public deployment checklist
+
+Public deployment is pending. The verified localhost release uses MySQL on port 3307, Spring Boot on 8081, and a private FastAPI process on 8000. Those addresses are demonstration settings.
+
+| Status | Area | Evidence or required action |
+|---|---|---|
+| Ready | Build | The checksum-pinned Spring Boot JAR and Vite production build passed local checks. Retain an immutable deployment artifact and checksum for each release. |
+| Ready | Local verification | The deployment smoke script exercises authentication, authorization, job search, recommendations, applications, allocations, attendance retrieval, archives, and a real model prediction. |
+| Needs configuration | Frontend API | Set `VITE_API_BASE_URL` to an absolute HTTPS origin before building. For a same-origin proxy, use the public site's own origin and route the API endpoints through it. Keep `VITE_USE_MOCK_DATA=false`. Treat all `VITE_*` settings as public. Limit any browser Maps key by domain and API. |
+| Needs configuration | Spring and MySQL | Inject `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` from the deployment secret store. Use a least-privilege application account, a separate migration identity, private database networking and verified TLS for remote MySQL. Set `SPRING_JPA_HIBERNATE_DDL_AUTO=validate`, disable SQL initialization and SQL logging, and provision durable database storage. |
+| Needs configuration | CORS | The current Spring allowlist contains localhost origins. Prefer routing the public frontend and API through one HTTPS origin. For separate origins, configure an explicit public frontend allowlist and verify preflight behavior in staging. |
+| Needs configuration | JWT and optional chat | Inject a generated `JWT_SECRET` and any optional `CHAT_API_KEY` through server-side secrets. Spring startup requires a JWT key of at least 32 UTF-8 bytes. Confirm expiration and coordinated key rotation policy. Exclude credentials, tokens, auth bodies, and private profiles from logs. |
+| Needs configuration | ML service | Set `LABOURLINK_ML_URL` to the private deployed model service. Use the pinned dependencies and original artifacts. Restrict public access to inference and feature-contract endpoints. Verify health, the model checksum, and a real prediction from Spring. |
+| Needs configuration | HTTPS and routing | Provision TLS termination, redirect HTTP to HTTPS, and set appropriate forwarded headers. Serve the SPA with a history fallback for browser routes. Configure timeouts and request limits at the gateway. |
+| Needs configuration | Health and logging | ML exposes `/health`. Keep an application smoke check such as `GET /jobs` and add dedicated readiness and liveness checks at the deployment boundary. Collect structured operational logs, monitor HTTP failures and ML fallback, and verify redaction. |
+| Blocked | Live attendance migration | The two append-only triggers passed isolated migration and rollback. They remain absent in live MySQL. An approved migration needs the recorded pre-migration inventory and checksum-verified schema backup. |
+| Blocked | Exact rollback for original 8080 build | The old compiled classes were overwritten. Routing rollback was rehearsed while the old JVM was available. The original JVM later exited, so that route is currently unavailable. A port-8080 replacement needs a recoverable previous artifact, or an explicitly approved rollout strategy with separate versioned services. |
+| Needs configuration | Backups and restart | Establish encrypted backups, retention, point-in-time recovery, and an isolated restore drill from a current snapshot. Configure service supervision and startup order for MySQL, ML, backend, and frontend; rehearse machine restart and rollback in staging. |
+| Not tested | Public environment | Public hosting, TLS, hosted MySQL, dedicated health probes, load, failover, browser behavior on the public domain, and production restart have not been tested. |
+
+See the [GitHub deployment readiness report](GITHUB-DEPLOYMENT-READINESS.md) for repository setup and release gates. The localhost guide and demo runbook can be reviewed separately before publishing. Bulk seed execution is a separate approval.

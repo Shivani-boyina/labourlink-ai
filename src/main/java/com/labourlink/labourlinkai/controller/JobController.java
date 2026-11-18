@@ -34,13 +34,18 @@ public class JobController {
     public Job createJob(@Valid @RequestBody Job job, Principal principal) {
         Contractor contractor = contractorRepository.findByPhone(principal.getName())
                 .orElseThrow(() -> new RuntimeException("Contractor not found"));
+        job.setJobId(null);
         job.setContractorId(contractor.getContractorId());
+        job.setStatus("OPEN");
         return jobService.createJob(job);
     }
 
     // GET ALL JOBS
     @GetMapping
     public List<Job> getAllJobs(Principal principal, Authentication authentication) {
+        if (authentication == null) {
+            return jobRepository.findByStatus("OPEN");
+        }
         boolean contractorRole = authentication.getAuthorities().stream()
                 .anyMatch(authority -> "ROLE_CONTRACTOR".equals(authority.getAuthority()));
         if (contractorRole) {
@@ -53,8 +58,45 @@ public class JobController {
 
     // GET JOB BY ID
     @GetMapping("/{id}")
-    public Job getJobById(@PathVariable Long id) {
-        return jobService.getJobById(id);
+    public Job getJobById(@PathVariable Long id, Principal principal, Authentication authentication) {
+        Job job = jobService.getJobById(id);
+        if ("OPEN".equalsIgnoreCase(job.getStatus())) {
+            return job;
+        }
+
+        if (authentication != null && principal != null && authentication.getAuthorities().stream()
+                .anyMatch(authority -> "ROLE_CONTRACTOR".equals(authority.getAuthority()))) {
+            Contractor contractor = contractorRepository.findByPhone(principal.getName())
+                    .orElseThrow(() -> new RuntimeException("Contractor not found"));
+            if (java.util.Objects.equals(job.getContractorId(), contractor.getContractorId())) {
+                return job;
+            }
+        }
+        throw new RuntimeException("Job not found");
+    }
+
+    // UPDATE JOB - Only editable fields are copied; ownership and status stay server-controlled.
+    @PutMapping("/{id}")
+    public Job updateJob(@PathVariable Long id, @Valid @RequestBody Job changes, Principal principal) {
+        Contractor contractor = contractorRepository.findByPhone(principal.getName())
+                .orElseThrow(() -> new RuntimeException("Contractor not found"));
+        Job existing = jobService.getJobById(id);
+        if (!java.util.Objects.equals(existing.getContractorId(), contractor.getContractorId())) {
+            throw new RuntimeException("Access denied: You do not own this job");
+        }
+        return jobService.updateJob(id, changes);
+    }
+
+    // CLOSE JOB - This is a one-way status action; reopening is not exposed.
+    @PatchMapping("/{id}/close")
+    public Job closeJob(@PathVariable Long id, Principal principal) {
+        Contractor contractor = contractorRepository.findByPhone(principal.getName())
+                .orElseThrow(() -> new RuntimeException("Contractor not found"));
+        Job existing = jobService.getJobById(id);
+        if (!java.util.Objects.equals(existing.getContractorId(), contractor.getContractorId())) {
+            throw new RuntimeException("Access denied: You do not own this job");
+        }
+        return jobService.closeJob(id);
     }
 
     // DELETE JOB - Enforces that contractors can only delete their own jobs
@@ -86,10 +128,16 @@ public class JobController {
         );
     }
 
+    @GetMapping("/recommendations/me")
+    public List<JobSearchDTO> getRecommendations(Principal principal) {
+        return jobService.findRecommendedJobs(principal.getName());
+    }
+
     // FIND MATCHING WORKERS FOR A JOB
     @GetMapping("/{id}/matches")
     public List<JobMatchDTO> findMatchingWorkers(
             @PathVariable Long id,
+            @RequestParam(defaultValue = "true") boolean includePrediction,
             Principal principal) {
 
         Contractor contractor = contractorRepository.findByPhone(principal.getName())
@@ -99,6 +147,6 @@ public class JobController {
             throw new RuntimeException("Access denied: You do not own this job");
         }
 
-        return jobService.findMatchingWorkers(id);
+        return jobService.findMatchingWorkers(id, includePrediction);
     }
 }

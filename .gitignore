@@ -2,10 +2,25 @@
 target/
 *.class
 
+# Python and frontend outputs
+__pycache__/
+*.py[cod]
+.venv/
+.venv-*/
+venv/
+.pytest_cache/
+node_modules/
+dist/
+*.tsbuildinfo
+
 # IDE
 .vscode/
 .idea/
 *.iml
+.classpath
+.factorypath
+.project
+.settings/
 
 # OS
 .DS_Store
@@ -19,6 +34,14 @@ logs/
 .env
 .env.*
 !.env.example
+!.env.*.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+.npmrc
+.pypirc
 
 # Local configuration
 application-local.properties
@@ -27,3 +50,52 @@ application-secret.properties
 # Temporary files
 *.tmp
 *.temp
+
+# Local dataset demonstration accounts and import progress
+.dataset-demo-credentials.json
+.dataset-import-state.json
+.dataset-import-state.lock
+.dataset-import-state.tmp
+
+# Retired data, model-development inputs, and duplicate workspace
+/labourlinkai/
+/labourlink_ai_*.csv
+/labourlinkai.csv
+/dataset/
+/ml_training/
+/raw_sources/
+/processed_sources/
+/data/LabourLinkAI_*_Registrations.csv
+/data/epics-demo-jobs-preview.csv
+*.joblib
+!/ml/models/labourlinkai_final_model.joblib
+
+# Local backups, archives, and generated reports
+backups/
+database-backups/
+*.dump
+*.bak
+*.backup
+*.zip
+*.7z
+*.tar
+*.tar.gz
+*.jar
+*.war
+*_backup*.sql
+*-backup*.sql
+*_dump*.sql
+*-dump*.sql
+/LabourLink_AI_EPICS_Final_Report.docx
+/docs/analytics-validation.json
+/docs/analytics-screenshots/
+/docs/epics-dashboard-screenshots/
+
+# Local data operations and demo checks that need private fixtures
+/import-workers.ps1
+/scripts/import_demo_dataset.py
+/scripts/prepare_selective_cleanup.py
+/scripts/seed_epics_demo_jobs.py
+/scripts/smoke_demo_job.py
+/scripts/verify_employment_analytics.py
+/scripts/deployment/smoke_backend_release.py

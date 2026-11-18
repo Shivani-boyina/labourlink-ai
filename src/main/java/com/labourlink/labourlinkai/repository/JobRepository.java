@@ -21,6 +21,9 @@ public interface JobRepository extends JpaRepository<Job, Long> {
 
     List<Job> findByContractorId(Long contractorId);
 
+    boolean existsByContractorId(Long contractorId);
+    boolean existsByJobIdAndContractorId(Long jobId, Long contractorId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select j from Job j where j.jobId = :jobId")
     java.util.Optional<Job> findByIdForUpdate(@Param("jobId") Long jobId);

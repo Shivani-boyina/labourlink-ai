@@ -1,4 +1,5 @@
 import { getToken } from '../utils/storage';
+import i18n from '../i18n';
 
 export const API_BASE_URL: string = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080';
 export const USE_MOCK: boolean = import.meta.env.VITE_USE_MOCK_DATA === 'true';
@@ -13,7 +14,7 @@ export class ApiError extends Error {
 }
 
 interface RequestOptions {
-  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
   form?: Record<string, string>;
   query?: Record<string, string | undefined>;
@@ -21,17 +22,26 @@ interface RequestOptions {
 }
 
 function statusMessage(status: number, serverText: string): string {
-  const detail = serverText && serverText.length < 200 ? ` (${serverText})` : '';
+  let detailText = serverText;
+  try {
+    const payload: unknown = JSON.parse(serverText);
+    if (typeof payload === 'object' && payload !== null && 'message' in payload && typeof payload.message === 'string') {
+      detailText = payload.message;
+    }
+  } catch {
+    // Keep the plain-text response when it is not JSON.
+  }
+  const detail = detailText && detailText.length < 200 ? ` (${detailText})` : '';
   switch (status) {
-    case 400: return `The server rejected the data. Please check the form.${detail}`;
-    case 401: return `Wrong phone number or password, or your login has expired.${detail}`;
-    case 403: return `Access denied. You may need to log in to access this resource.${detail}`;
-    case 404: return 'Not found. The item may have been removed.';
-    case 409: return `This record already exists.${detail}`;
+    case 400: return `${i18n.t('apiErrors.badRequest')}${detail}`;
+    case 401: return `${i18n.t('apiErrors.unauthorized')}${detail}`;
+    case 403: return `${i18n.t('apiErrors.forbidden')}${detail}`;
+    case 404: return `${i18n.t('apiErrors.notFound')}${detail}`;
+    case 409: return `${i18n.t('apiErrors.conflict')}${detail}`;
     default:
       return status >= 500
-        ? 'Server error. Please try again, or check the backend console for details.'
-        : `Request failed (status ${status}).${detail}`;
+        ? i18n.t('apiErrors.serverError')
+        : `${i18n.t('apiErrors.generic')} (status ${status})${detail}`;
   }
 }
 
@@ -61,7 +71,7 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
     res = await fetch(url.toString(), { method: opts.method ?? 'GET', headers, body });
   } catch {
     throw new ApiError(
-      `Backend connection failed. Please make sure LabourLink AI backend is running at ${API_BASE_URL}.`,
+      i18n.t('apiErrors.connectionFailed'),
       0,
     );
   }
@@ -77,7 +87,7 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
 }
 
 export function errorMessage(e: unknown): string {
-  return e instanceof Error ? e.message : 'Something went wrong. Please try again.';
+  return e instanceof Error ? e.message : i18n.t('apiErrors.generic');
 }
 
 /** Some endpoints may return a single object, an array, or nothing. */
