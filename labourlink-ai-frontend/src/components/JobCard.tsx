@@ -23,7 +23,7 @@ export const StatusBadge = ({ status }: { status: string }) => {
   );
 };
 
-export default function JobCard({ job }: { job: Job }) {
+export default function JobCard({ job, contractorName }: { job: Job; contractorName?: string | null }) {
   const { t, i18n } = useTranslation();
   const localizedSkill = t(`workerRegister.skills.${job.requiredSkill}`, job.requiredSkill);
 
@@ -32,6 +32,7 @@ export default function JobCard({ job }: { job: Job }) {
       {/* Header: Title and Status */}
       <div className="flex items-start justify-between gap-3">
         <div><h3 className="text-xl font-bold text-slate-900 leading-snug line-clamp-2">{job.title}</h3>
+          {contractorName && <p className="text-sm text-slate-700">{contractorName}</p>}
           <SpeakButton language={i18n.resolvedLanguage} label={`Read job ${job.title}`} text={`${job.title}. ${job.description}. Required skill: ${localizedSkill}. Location: ${job.location}. ${job.minimumExperience != null ? `Minimum experience: ${job.minimumExperience} years.` : ''} ${job.durationDays != null ? `Duration: ${job.durationDays} days.` : ''} Daily wage: ${job.wagePerDay} rupees. Workers needed: ${job.requiredWorkers}. Status: ${job.status}.`} />
         </div>
         <div className="shrink-0">

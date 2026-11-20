@@ -17,7 +17,6 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.function.ToIntFunction;
 
 @Service
 public class WorkerMatchingService {
@@ -40,6 +39,7 @@ public class WorkerMatchingService {
     List<JobMatchDTO> find(Job job, boolean includePrediction) {
         if (job.getRequiredSkill() == null || job.getLocation() == null) return List.of();
         Instant now = Instant.now();
+        if (job.getEndDate() != null && job.getEndDate().isBefore(LocalDate.ofInstant(now, ZoneId.of("Asia/Kolkata")))) return List.of();
         var pool = workers.findBySkillIgnoreCase(job.getRequiredSkill()).stream()
                 .filter(worker -> eligibleProfile(job, worker))
                 .sorted(BY_EXPERIENCE).toList();
@@ -60,6 +60,7 @@ public class WorkerMatchingService {
             if (includePrediction) {
                 var input = MLFeatureMapper.from(worker, job, rating, monthly.countFor(worker.getWorkerId()));
                 match.applyRecommendation(batch.score(input), reasons(job, worker));
+                match.setMatchingScore(recommendationScore(job, worker));
             }
             matches.add(match);
         }
@@ -71,7 +72,7 @@ public class WorkerMatchingService {
         return matches;
     }
 
-    List<JobSearchDTO> recommend(Worker worker, List<Job> candidates, ToIntFunction<Job> ruleScore) {
+    List<JobSearchDTO> recommend(Worker worker, List<Job> candidates) {
         if (!Boolean.TRUE.equals(worker.getAvailability())) return List.of();
         Instant now = Instant.now();
         LocalDate today = LocalDate.ofInstant(now, ZoneId.of("Asia/Kolkata"));
@@ -86,11 +87,29 @@ public class WorkerMatchingService {
         var month = history.monthlyAllocations(ids, MatchingDataRepository.Month.containing(now)).countFor(worker.getWorkerId());
         var batch = scoring.batch();
         return eligible.stream()
-                .map(job -> new JobSearchDTO(job, ruleScore.applyAsInt(job),
-                        batch.score(MLFeatureMapper.from(worker, job, rating, month))))
+                .map(job -> new JobSearchDTO(job, recommendationScore(job, worker),
+                        batch.score(MLFeatureMapper.from(worker, job, rating, month)), reasons(job, worker)))
                 .sorted(Comparator.comparingDouble(WorkerMatchingService::displayScore).reversed()
                         .thenComparing(row -> row.getJob().getJobId()))
                 .toList();
+    }
+
+    private static int recommendationScore(Job job, Worker worker) {
+        int score = 0;
+        if (same(job.getRequiredSkill(), worker.getSkill())) score += 40;
+        if (same(job.getLocation(), worker.getLocation())) score += 25;
+
+        Integer minimumExperience = job.getMinimumExperience();
+        if (minimumExperience == null || minimumExperience == 0) score += 15;
+        else if (worker.getExperience() != null && worker.getExperience() >= minimumExperience) score += 15;
+        else if (worker.getExperience() != null) score += Math.max(0, 15 * worker.getExperience() / minimumExperience);
+
+        Double expected = worker.getExpectedWagePerDay();
+        Double offered = job.getWagePerDay();
+        if (expected != null && expected > 0 && offered != null) {
+            score += (int) Math.round(20 * Math.min(1.0, offered / expected));
+        }
+        return score;
     }
 
     private static double displayScore(JobSearchDTO row) {

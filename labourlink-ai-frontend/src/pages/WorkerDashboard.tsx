@@ -17,6 +17,7 @@ import {
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import MatchSummary from '../components/MatchSummary';
 import JobCard from '../components/JobCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
@@ -79,12 +80,6 @@ export default function WorkerDashboard() {
   const employmentPercentage = new Intl.NumberFormat(undefined, {
     style: 'percent', maximumFractionDigits: 1,
   }).format(scheduledDays / employmentDays);
-  const todayMatches = recommended.filter(({ job }) => job.startDate && job.endDate &&
-    job.startDate <= today && job.endDate >= today);
-  const todayIds = new Set(todayMatches.map(({ job }) => job.jobId));
-  const upcoming = recommended.filter(({ job }) => !todayIds.has(job.jobId));
-  const scores = todayMatches.map(({ matchingScore, recommendation }) => recommendation?.matchPercentage ?? matchingScore);
-  const opportunity = Math.round(scores.reduce((best, score) => Math.max(best, score), 0));
   const applied = new Set([...submitted, ...(applications.data ?? []).map((application) => application.jobId)]);
 
   async function apply(jobId: number) {
@@ -261,6 +256,101 @@ export default function WorkerDashboard() {
             </div>
           </div>
 
+          <section className="grid gap-4 sm:grid-cols-2">
+            {(['sevenDays', 'thirtyDays'] as const).map((horizon) => (
+              <article key={horizon} className="card border-2 border-slate-200 bg-white p-5">
+                <h2 className="font-bold text-blue-950">{t('dashboardMatching.' + horizon)}</h2>
+                <p className="mt-2 text-sm text-slate-700">{t('dashboardMatching.insufficientData')}</p>
+              </article>
+            ))}
+          </section>
+
+          {/* Matching Jobs for Worker */}
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                  <Sparkles size={22} className="text-blue-600" aria-hidden />
+                  <span>{t('dashboardMatching.jobs')}</span>
+                </h2>
+                <p className="text-sm text-slate-600">
+                  {t('workerDashboard.matchingJobsDesc', {
+                    skill: t('workerRegister.skills.' + worker.skill, worker.skill),
+                    location: worker.location,
+                  })}
+                </p>
+              </div>
+            </div>
+
+            {recommendations.loading && <LoadingSpinner label={t('workerDashboard.loadingJobs')} />}
+            {recommendations.error && <ErrorMessage message={recommendations.error} onRetry={recommendations.reload} />}
+
+            {!recommendations.loading && !recommendations.error && recommendations.data && (
+              <p role="status" className="text-sm text-slate-700">
+                {t('dashboardMatching.count', { count: recommended.length })}
+              </p>
+            )}
+            {applyFailed && <p role="alert" className="text-sm text-red-700">{t('opportunity.applyFailure')}</p>}
+
+            {!recommendations.loading && !recommendations.error && recommendations.data?.length === 0 && (
+              <EmptyState
+                title={t('dashboardMatching.noEligible')}
+                text={t(worker.availability ? 'dashboardMatching.eligibility' : 'dashboardMatching.unavailableWorker')}
+                action={
+                  <Link to="/jobs" className="btn-primary">
+                    <Search size={18} />
+                    <span>{t('workerDashboard.findWork')}</span>
+                  </Link>
+                }
+              />
+            )}
+
+            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {recommended.map(({ job, matchingScore, recommendation, contractorName, matchingReasons }) => (
+                <div key={job.jobId} className="flex flex-col gap-2">
+                  <MatchSummary score={matchingScore} recommendation={recommendation} reasons={matchingReasons} />
+                  <JobCard job={job} contractorName={contractorName} />
+                  <button type="button" className="btn-primary"
+                    disabled={applied.has(job.jobId) || applying !== null || applications.loading || !!applications.error}
+                    onClick={() => void apply(job.jobId)}>
+                    {t(applied.has(job.jobId) ? 'opportunity.applied' : 'opportunity.apply')}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* All Available Jobs */}
+          <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                  <Briefcase size={22} className="text-blue-600" aria-hidden />
+                  <span>{t('workerDashboard.availableJobs')}</span>
+                </h2>
+                <p className="text-sm text-slate-600">{t('workerDashboard.allJobsDesc')}</p>
+              </div>
+              <Link to="/jobs" className="btn-outline !py-2 !text-sm">
+                {t('workerDashboard.viewAllAndFilter')}
+              </Link>
+            </div>
+
+            {jobs.loading && <LoadingSpinner label={t('workerDashboard.loadingJobs')} />}
+            {jobs.error && <ErrorMessage message={jobs.error} onRetry={jobs.reload} />}
+
+            {!jobs.loading && !jobs.error && jobs.data?.length === 0 && (
+              <EmptyState
+                title={t('workerDashboard.noAvailableJobs')}
+                text={t('workerDashboard.noJobsMessage')}
+              />
+            )}
+
+            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {jobs.data?.slice(0, 6).map((job) => (
+                <JobCard key={job.jobId} job={job} />
+              ))}
+            </div>
+          </div>
           {/* Quick Actions & Recent Applications */}
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
@@ -327,44 +417,6 @@ export default function WorkerDashboard() {
             )}
           </div>
 
-          {/* Matching Jobs for Worker */}
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                  <Sparkles size={22} className="text-blue-600" aria-hidden />
-                  <span>{t('opportunity.title')}</span>
-                </h2>
-                <p className="text-sm text-slate-600">
-                  {t('workerDashboard.matchingJobsDesc', {
-                    skill: t('workerRegister.skills.' + worker.skill, worker.skill),
-                    location: worker.location,
-                  })}
-                </p>
-              </div>
-            </div>
-
-            {recommendations.loading && <LoadingSpinner label={t('workerDashboard.loadingJobs')} />}
-            {recommendations.error && <ErrorMessage message={recommendations.error} onRetry={recommendations.reload} />}
-
-            {!recommendations.loading && !recommendations.error && (
-              <div id="opportunity-summary" className="flex flex-wrap items-center gap-4 rounded-xl bg-blue-50 p-4 text-blue-950">
-                <div className="relative grid h-16 w-16 shrink-0 place-items-center">
-                  <svg className="absolute inset-0 -rotate-90" viewBox="0 0 40 40" aria-hidden="true">
-                    <circle cx="20" cy="20" r="17" fill="none" stroke="currentColor" strokeWidth="3" className="text-blue-200" />
-                    <circle cx="20" cy="20" r="17" fill="none" stroke="currentColor" strokeWidth="3"
-                      className="text-blue-700" pathLength="100" strokeDasharray={`${opportunity} 100`} />
-                  </svg>
-                  <strong>{opportunity}%</strong>
-                </div>
-                <div className="space-y-1 text-sm">
-                  <p className="font-semibold">{t(todayMatches.length ? 'opportunity.todayAvailable' : 'opportunity.todayEmpty')}</p>
-                  <p>{t('opportunity.score')} · {t('opportunity.today', { count: todayMatches.length })}</p>
-                  <p>{t('opportunity.explanation')}</p>
-                  {todayMatches.some((row) => row.recommendation?.method === 'RULE_BASED') && <p>{t('opportunity.fallback')}</p>}
-                </div>
-              </div>
-            )}
             <section className="space-y-2 rounded-xl bg-white p-4 border border-slate-200">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="font-semibold text-blue-950">{t('workerEmployment.title')}</h3>
@@ -387,75 +439,6 @@ export default function WorkerDashboard() {
               )}
               <p className="text-sm text-slate-600">{t('workerEmployment.explanation')}</p>
             </section>
-            {applyFailed && <p role="alert" className="text-sm text-red-700">{t('opportunity.applyFailure')}</p>}
-
-            {!recommendations.loading && !recommendations.error && recommendations.data?.length === 0 && (
-              <EmptyState
-                title={t('workerDashboard.noJobs')}
-                text={t('workerDashboard.noJobsMessage')}
-                action={
-                  <Link to="/jobs" className="btn-primary">
-                    <Search size={18} />
-                    <span>{t('workerDashboard.findWork')}</span>
-                  </Link>
-                }
-              />
-            )}
-
-            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-              {[...todayMatches, ...upcoming].slice(0, 3).map(({ job, matchingScore, recommendation }) => (
-                <div key={job.jobId} className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between rounded-xl bg-blue-100/80 px-3 py-1.5 text-xs font-bold text-blue-900">
-                    <span className="flex items-center gap-1">
-                      <Sparkles size={13} className="text-blue-700" /> {t('workerDashboard.matchScoreLabel')}
-                    </span>
-                    <span>{t('workerDashboard.percentMatch', { score: recommendation?.matchPercentage ?? matchingScore })}</span>
-                  </div>
-                  <JobCard job={job} />
-                  {!todayIds.has(job.jobId) && <p className="text-sm text-slate-600">
-                    {t(job.startDate && job.endDate ? 'opportunity.upcoming' : 'opportunity.scheduleUnknown')}
-                  </p>}
-                  <button type="button" className="btn-primary"
-                    disabled={applied.has(job.jobId) || applying !== null || applications.loading || !!applications.error}
-                    onClick={() => void apply(job.jobId)}>
-                    {t(applied.has(job.jobId) ? 'opportunity.applied' : 'opportunity.apply')}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* All Available Jobs */}
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                  <Briefcase size={22} className="text-blue-600" aria-hidden />
-                  <span>{t('workerDashboard.availableJobs')}</span>
-                </h2>
-                <p className="text-sm text-slate-600">{t('workerDashboard.allJobsDesc')}</p>
-              </div>
-              <Link to="/jobs" className="btn-outline !py-2 !text-sm">
-                {t('workerDashboard.viewAllAndFilter')}
-              </Link>
-            </div>
-
-            {jobs.loading && <LoadingSpinner label={t('workerDashboard.loadingJobs')} />}
-            {jobs.error && <ErrorMessage message={jobs.error} onRetry={jobs.reload} />}
-
-            {!jobs.loading && !jobs.error && jobs.data?.length === 0 && (
-              <EmptyState
-                title={t('workerDashboard.noAvailableJobs')}
-                text={t('workerDashboard.noJobsMessage')}
-              />
-            )}
-
-            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-              {jobs.data?.slice(0, 6).map((job) => (
-                <JobCard key={job.jobId} job={job} />
-              ))}
-            </div>
-          </div>
         </>
       )}
     </div>

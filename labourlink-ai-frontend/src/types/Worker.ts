@@ -22,6 +22,7 @@ export type WorkerInput = Omit<Worker, 'workerId'>;
 
 export interface WorkerMatch extends Worker {
   matchingReasons?: string[];
+  matchingScore?: number | null;
   recommendation?: {
     method: 'ML' | 'RULE_BASED';
     matchPercentage: number | null;

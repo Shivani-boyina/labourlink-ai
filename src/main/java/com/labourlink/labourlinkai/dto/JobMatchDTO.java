@@ -17,6 +17,7 @@ public class JobMatchDTO {
     private long reviewCount;
     private MLMatchScoring.Result recommendation;
     private List<String> matchingReasons;
+    private Integer matchingScore;
 
     public JobMatchDTO() {
     }
@@ -105,6 +106,9 @@ public class JobMatchDTO {
     public long getReviewCount() { return reviewCount; }
     public MLMatchScoring.Result getRecommendation() { return recommendation; }
     public List<String> getMatchingReasons() { return matchingReasons; }
+
+    public Integer getMatchingScore() { return matchingScore; }
+    public void setMatchingScore(Integer matchingScore) { this.matchingScore = matchingScore; }
 
     public void applyRecommendation(MLMatchScoring.Result result, List<String> reasons) {
         recommendation = result;

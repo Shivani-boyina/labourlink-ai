@@ -1,4 +1,22 @@
 {
+  "dashboardMatching": {
+    "sevenDays": "7-Day Employment Probability",
+    "thirtyDays": "30-Day Employment Probability",
+    "insufficientData": "Prediction unavailable — insufficient historical data",
+    "jobs": "AI Recommended Jobs",
+    "count_one": "{{count}} recommended job",
+    "count_other": "{{count}} recommended jobs",
+    "noEligible": "No eligible jobs right now",
+    "eligibility": "Recommendations depend on skill, location, wage, experience, schedule and open slots. You can still browse all available jobs below.",
+    "unavailableWorker": "Set your profile availability to Available to receive job recommendations.",
+    "workers": "Recommended Workers",
+    "noOpenJobs": "Post an open job to see worker recommendations.",
+    "workerLoadFailed": "Worker recommendations could not be loaded.",
+    "noWorkers": "No eligible workers for this job right now.",
+    "mlScore": "ML match score",
+    "ruleScore": "Rule-based compatibility score",
+    "baseExplanation": "Skill and location match. Availability and job requirements were checked."
+  },
   "workerEmployment": {
     "title": "My employment percentage",
     "period": "Period",

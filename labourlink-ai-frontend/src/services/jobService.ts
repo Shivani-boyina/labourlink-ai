@@ -68,6 +68,8 @@ export async function searchJobs(
 export interface JobRecommendation {
   job: Job;
   matchingScore: number;
+  contractorName?: string | null;
+  matchingReasons?: string[] | null;
   recommendation?: {
     method: 'ML' | 'RULE_BASED';
     matchPercentage: number | null;
@@ -77,9 +79,11 @@ export interface JobRecommendation {
 
 export async function getMyRecommendations(): Promise<JobRecommendation[]> {
   if (USE_MOCK) return MOCK_JOBS.map((job) => ({ job, matchingScore: 0 }));
-  return asArray<JobRecommendation>(
-    await request<unknown>('/jobs/recommendations/me', { auth: true })
-  );
+  const results = await request<JobRecommendation[]>('/jobs/recommendations/me', { auth: true });
+  if (!Array.isArray(results) || results.some((row) => !row?.job || !Number.isFinite(row.matchingScore))) {
+    throw new Error('Invalid recommendation response');
+  }
+  return results;
 }
 
 export async function getJob(

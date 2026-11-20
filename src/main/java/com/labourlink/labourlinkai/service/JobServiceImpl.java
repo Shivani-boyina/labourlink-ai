@@ -15,7 +15,10 @@ import org.springframework.transaction.annotation.Isolation;
 
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
+import java.util.Objects;
+import java.util.stream.Collectors;
+import com.labourlink.labourlinkai.repository.ContractorRepository;
+import com.labourlink.labourlinkai.entity.Contractor;
 
 @Service
 public class JobServiceImpl implements JobService {
@@ -30,6 +33,8 @@ public class JobServiceImpl implements JobService {
     private ApplicationRepository applicationRepository;
     @Autowired
     private WorkerMatchingService workerMatching;
+    @Autowired
+    private ContractorRepository contractorRepository;
 
     @Override
     public Job createJob(Job job) {
@@ -243,41 +248,22 @@ public class JobServiceImpl implements JobService {
         return workerMatching.find(job, includePrediction);
     }
 
-    /**
-     * Explainable rule score over existing profile/job fields:
-     * skill 40, location 25, experience 15, wage fit 20.
-     * Unavailable workers are ineligible. Missing expected wage contributes no wage points.
-     */
     @Override
     public List<JobSearchDTO> findRecommendedJobs(String workerPhone) {
         Worker worker = workerRepository.findByPhone(workerPhone)
                 .orElseThrow(() -> new RuntimeException("Worker not found"));
         if (!Boolean.TRUE.equals(worker.getAvailability())) return List.of();
 
-        return workerMatching.recommend(worker, jobRepository.findByStatus("OPEN").stream()
-                .filter(this::isJobNotFull).toList(), job -> recommendationScore(job, worker));
+        var recommendations = workerMatching.recommend(worker, jobRepository.findByStatus("OPEN").stream()
+                .filter(this::isJobNotFull).toList());
+        if (recommendations.isEmpty()) return recommendations;
+        var contractorIds = recommendations.stream().map(row -> row.getJob().getContractorId())
+                .filter(Objects::nonNull).distinct().toList();
+        var names = contractorRepository.findAllById(contractorIds).stream()
+                .filter(contractor -> contractor.getContractorName() != null)
+                .collect(Collectors.toMap(Contractor::getContractorId, Contractor::getContractorName));
+        recommendations.forEach(row -> row.setContractorName(names.get(row.getJob().getContractorId())));
+        return recommendations;
     }
 
-    private int recommendationScore(Job job, Worker worker) {
-        int score = 0;
-        if (same(job.getRequiredSkill(), worker.getSkill())) score += 40;
-        if (same(job.getLocation(), worker.getLocation())) score += 25;
-
-        Integer minimumExperience = job.getMinimumExperience();
-        if (minimumExperience == null || minimumExperience == 0) score += 15;
-        else if (worker.getExperience() != null && worker.getExperience() >= minimumExperience) score += 15;
-        else if (worker.getExperience() != null) score += Math.max(0, 15 * worker.getExperience() / minimumExperience);
-
-        Double expected = worker.getExpectedWagePerDay();
-        Double offered = job.getWagePerDay();
-        if (expected != null && expected > 0 && offered != null) {
-            score += (int) Math.round(20 * Math.min(1.0, offered / expected));
-        }
-        return score;
-    }
-
-    private boolean same(String left, String right) {
-        return left != null && right != null && left.trim().toLowerCase(Locale.ROOT)
-                .equals(right.trim().toLowerCase(Locale.ROOT));
-    }
 }

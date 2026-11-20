@@ -20,6 +20,7 @@ import {
   UserCheck,
   XCircle,
 } from 'lucide-react';
+import MatchSummary from '../components/MatchSummary';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
 import EmptyState from '../components/EmptyState';
@@ -29,6 +30,7 @@ import { errorMessage } from '../services/api';
 import { useFetch } from '../utils/useFetch';
 import { getJobApplicants, updateApplicationStatus } from '../services/applicationService';
 import { getAllocations } from '../services/allocationService';
+import type { WorkerMatch } from '../types/Worker';
 import type { ApplicationRecord } from '../services/applicationService';
 
 function Applicants({ jobId, onChanged }: { jobId: number; onChanged: () => void }) {
@@ -195,12 +197,12 @@ export default function ContractorDashboard() {
   const [actionError, setActionError] = useState<string | null>(null);
 
   const { data, loading, error, reload } = useFetch(async () => {
-    if (cid === null) return { mine: [], metrics: null, byJob: new Map() };
+    if (cid === null) return { mine: [], metrics: null, byJob: new Map<number, WorkerMatch[] | null>() };
     const [all, allocations] = await Promise.all([getJobs(), getAllocations('contractor').catch(() => null)]);
     const mine = all.filter((j) => j.contractorId === cid);
     const details = await Promise.all(mine.map(async (job) => {
       const [matches, applicants] = await Promise.all([
-        job.status === 'OPEN' ? getMatches(String(job.jobId), true).catch(() => null) : Promise.resolve([]),
+        job.status?.toUpperCase() === 'OPEN' ? getMatches(String(job.jobId), true).catch(() => null) : Promise.resolve([]),
         getJobApplicants(job.jobId).catch(() => null),
       ]);
       return { jobId: job.jobId, matches, applicants };
@@ -344,6 +346,44 @@ export default function ContractorDashboard() {
           </div>
         ))}
       </div>
+
+      <section aria-labelledby="recommended-workers" className="space-y-4">
+        <h2 id="recommended-workers" className="text-2xl font-bold text-slate-900">
+          {t('dashboardMatching.workers')}
+        </h2>
+        {loading && <LoadingSpinner label={t('contractorDashboard.loadingJobs')} />}
+        {!loading && !error && !jobs.some((job) => job.status?.toUpperCase() === 'OPEN') && (
+          <p className="text-sm text-slate-700">{t('dashboardMatching.noOpenJobs')}</p>
+        )}
+        {!loading && !error && jobs.filter((job) => job.status?.toUpperCase() === 'OPEN').map((job) => {
+          const matches = data?.byJob.get(job.jobId);
+          return (
+            <article key={job.jobId} className="card space-y-3 p-4">
+              <h3 className="font-bold text-blue-950">{job.title}</h3>
+              {matches == null && <ErrorMessage message={t('dashboardMatching.workerLoadFailed')} onRetry={reload} />}
+              {matches?.length === 0 && <p className="text-sm text-slate-700">{t('dashboardMatching.noWorkers')}</p>}
+              {!!matches?.length && (
+                <>
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {matches.slice(0, 3).map((worker) => (
+                      <div key={worker.workerId} className="space-y-2 rounded-xl border border-slate-200 p-3">
+                        <h4 className="font-bold text-slate-900">{worker.name}</h4>
+                        <p className="text-sm text-slate-700">
+                          {t('workerRegister.skills.' + worker.skill, worker.skill)} · {worker.experience ?? '—'} {t('workerDashboard.years')} · {worker.location}
+                        </p>
+                        <MatchSummary score={worker.matchingScore} recommendation={worker.recommendation} reasons={worker.matchingReasons} />
+                      </div>
+                    ))}
+                  </div>
+                  <Link className="btn-outline" to={`/jobs/${job.jobId}/matches`}>
+                    {t('employmentOverview.viewMatches')}
+                  </Link>
+                </>
+              )}
+            </article>
+          );
+        })}
+      </section>
 
       {/* My Jobs Section */}
       <div className="space-y-4">
