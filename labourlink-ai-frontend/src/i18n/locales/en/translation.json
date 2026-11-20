@@ -1,5 +1,18 @@
 {
   "dashboardMatching": {
+    "invalidResponse": "The server returned an invalid recommendation response.",
+    "exclusions": {
+      "UNAVAILABLE": "Your profile is set to unavailable.",
+      "NO_OPEN_JOBS": "There are no open jobs.",
+      "SKILL": "Some open jobs require a different skill.",
+      "EXPIRED": "Some matching jobs have ended.",
+      "LOCATION": "Some jobs for your skill have a different location.",
+      "REGION": "Some jobs for your skill have a different state or district.",
+      "EXPERIENCE": "Some jobs require more experience.",
+      "WAGE": "Some jobs offer less than your expected daily wage.",
+      "NO_OPEN_SLOTS": "Some matching jobs have filled all their positions.",
+      "SCHEDULE": "Some matching jobs conflict with your work schedule or you have already been accepted."
+    },
     "sevenDays": "7-Day Employment Probability",
     "thirtyDays": "30-Day Employment Probability",
     "insufficientData": "Prediction unavailable — insufficient historical data",

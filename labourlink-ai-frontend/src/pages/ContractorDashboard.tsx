@@ -191,6 +191,11 @@ function Applicants({ jobId, onChanged }: { jobId: number; onChanged: () => void
 }
 
 export default function ContractorDashboard() {
+  const { session } = useAuth();
+  return <ContractorDashboardContent key={session?.userId ?? 'anonymous'} />;
+}
+
+function ContractorDashboardContent() {
   const { t } = useTranslation();
   const { session } = useAuth();
   const cid = session?.userId ?? null;

@@ -2,6 +2,7 @@ package com.labourlink.labourlinkai.service;
 
 import com.labourlink.labourlinkai.dto.JobMatchDTO;
 import com.labourlink.labourlinkai.dto.JobSearchDTO;
+import com.labourlink.labourlinkai.dto.JobRecommendationsDTO;
 import com.labourlink.labourlinkai.entity.Job;
 import com.labourlink.labourlinkai.entity.Worker;
 import com.labourlink.labourlinkai.repository.ApplicationRepository;
@@ -250,20 +251,26 @@ public class JobServiceImpl implements JobService {
 
     @Override
     public List<JobSearchDTO> findRecommendedJobs(String workerPhone) {
+        return findRecommendationDetails(workerPhone).recommendations();
+    }
+
+    @Override
+    public JobRecommendationsDTO findRecommendationDetails(String workerPhone) {
         Worker worker = workerRepository.findByPhone(workerPhone)
                 .orElseThrow(() -> new RuntimeException("Worker not found"));
-        if (!Boolean.TRUE.equals(worker.getAvailability())) return List.of();
-
-        var recommendations = workerMatching.recommend(worker, jobRepository.findByStatus("OPEN").stream()
-                .filter(this::isJobNotFull).toList());
-        if (recommendations.isEmpty()) return recommendations;
+        if (!Boolean.TRUE.equals(worker.getAvailability())) {
+            return new JobRecommendationsDTO(List.of(), List.of(JobRecommendationsDTO.Reason.UNAVAILABLE));
+        }
+        var result = workerMatching.recommend(worker, jobRepository.findByStatus("OPEN"), this::isJobNotFull);
+        var recommendations = result.recommendations();
+        if (recommendations.isEmpty()) return result;
         var contractorIds = recommendations.stream().map(row -> row.getJob().getContractorId())
                 .filter(Objects::nonNull).distinct().toList();
         var names = contractorRepository.findAllById(contractorIds).stream()
                 .filter(contractor -> contractor.getContractorName() != null)
                 .collect(Collectors.toMap(Contractor::getContractorId, Contractor::getContractorName));
         recommendations.forEach(row -> row.setContractorName(names.get(row.getJob().getContractorId())));
-        return recommendations;
+        return result;
     }
 
 }

@@ -41,7 +41,7 @@ public final class MLFeatureMapper {
                 if (!CATEGORIES.contains(feature) || !encoded.containsKey(feature)) continue;
                 String actual = (String) encoded.get(feature);
                 var matches = categories.getOrDefault(feature, List.of()).stream()
-                        .filter(value -> value.equalsIgnoreCase(actual)).toList();
+                        .filter(value -> MatchingText.normalize(value).equalsIgnoreCase(actual)).toList();
                 if (matches.size() == 1) encoded.put(feature, matches.get(0));
                 else problems.add(new Issue(feature, "UNSUPPORTED"));
             }
@@ -84,8 +84,9 @@ public final class MLFeatureMapper {
         final List<Issue> issues = new ArrayList<>();
 
         void text(String name, String value) {
-            if (value == null || value.isBlank()) issues.add(new Issue(name, "MISSING"));
-            else values.put(name, value.strip());
+            String normalized = MatchingText.normalize(value);
+            if (normalized.isEmpty()) issues.add(new Issue(name, "MISSING"));
+            else values.put(name, normalized);
         }
 
         void number(String name, Number value, double minimum, double maximum) {

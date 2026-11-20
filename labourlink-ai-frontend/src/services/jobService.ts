@@ -1,6 +1,7 @@
 import {
   asArray,
   request,
+  ApiError,
   USE_MOCK,
 } from './api';
 
@@ -15,6 +16,7 @@ import type {
   JobInput,
 } from '../types/Job';
 
+import i18n from '../i18n';
 import type { WorkerMatch } from '../types/Worker';
 
 const hasFilters = (
@@ -74,16 +76,34 @@ export interface JobRecommendation {
     method: 'ML' | 'RULE_BASED';
     matchPercentage: number | null;
     fallbackReason: string | null;
+    featureIssues?: Array<{ feature: string; reason: string }>;
   } | null;
 }
 
-export async function getMyRecommendations(): Promise<JobRecommendation[]> {
-  if (USE_MOCK) return MOCK_JOBS.map((job) => ({ job, matchingScore: 0 }));
-  const results = await request<JobRecommendation[]>('/jobs/recommendations/me', { auth: true });
-  if (!Array.isArray(results) || results.some((row) => !row?.job || !Number.isFinite(row.matchingScore))) {
-    throw new Error('Invalid recommendation response');
+interface RecommendationDetails {
+  recommendations: JobRecommendation[];
+  exclusions: string[];
+}
+
+function validScore(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 100;
+}
+
+export async function getMyRecommendations(): Promise<RecommendationDetails> {
+  if (USE_MOCK) return { recommendations: [], exclusions: [] };
+
+  const payload = await request<RecommendationDetails | JobRecommendation[]>('/jobs/recommendations/me', {
+    auth: true,
+    query: { details: 'true' },
+  });
+  // Older backend deployments return the original array.
+  const result = Array.isArray(payload) ? { recommendations: payload, exclusions: [] } : payload;
+  if (!Array.isArray(result?.recommendations) ||
+      result.recommendations.some((row) => !row?.job || !validScore(row.matchingScore)) ||
+      !Array.isArray(result.exclusions) || result.exclusions.some((reason) => typeof reason !== 'string')) {
+    throw new ApiError(i18n.t('dashboardMatching.invalidResponse'), 502);
   }
-  return results;
+  return result;
 }
 
 export async function getJob(
@@ -157,13 +177,12 @@ export async function getMatches(
     return MOCK_WORKERS;
   }
 
-  return asArray<WorkerMatch>(
-    await request<unknown>(
-      `/jobs/${encodeURIComponent(id)}/matches`,
-      {
-        auth: true,
-        query: { includePrediction: String(includePrediction) },
-      }
-    )
-  );
+  const matches = await request<WorkerMatch[]>(`/jobs/${encodeURIComponent(id)}/matches`, {
+    auth: true,
+    query: { includePrediction: String(includePrediction) },
+  });
+  if (!Array.isArray(matches) || matches.some((worker) => !Number.isSafeInteger(worker?.workerId))) {
+    throw new ApiError(i18n.t('dashboardMatching.invalidResponse'), 502);
+  }
+  return matches;
 }

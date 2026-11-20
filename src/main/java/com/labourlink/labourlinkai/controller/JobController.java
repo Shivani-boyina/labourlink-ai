@@ -2,6 +2,7 @@ package com.labourlink.labourlinkai.controller;
 
 import com.labourlink.labourlinkai.dto.JobMatchDTO;
 import com.labourlink.labourlinkai.dto.JobSearchDTO;
+import com.labourlink.labourlinkai.dto.JobRecommendationsDTO;
 import com.labourlink.labourlinkai.entity.Contractor;
 import com.labourlink.labourlinkai.entity.Job;
 import com.labourlink.labourlinkai.repository.ContractorRepository;
@@ -131,6 +132,11 @@ public class JobController {
     @GetMapping("/recommendations/me")
     public List<JobSearchDTO> getRecommendations(Principal principal) {
         return jobService.findRecommendedJobs(principal.getName());
+    }
+
+    @GetMapping(value = "/recommendations/me", params = "details=true")
+    public JobRecommendationsDTO getRecommendationDetails(Principal principal) {
+        return jobService.findRecommendationDetails(principal.getName());
     }
 
     // FIND MATCHING WORKERS FOR A JOB

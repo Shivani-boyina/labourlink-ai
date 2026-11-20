@@ -6,6 +6,11 @@ import com.labourlink.labourlinkai.controller.ContractorController;
 import com.labourlink.labourlinkai.controller.JobController;
 import com.labourlink.labourlinkai.controller.WorkerController;
 import com.labourlink.labourlinkai.dto.ArchivedApplicationDTO;
+import com.labourlink.labourlinkai.dto.JobRecommendationsDTO;
+import com.labourlink.labourlinkai.dto.JobRecommendationsDTO.Reason;
+import com.labourlink.labourlinkai.entity.Contractor;
+import com.labourlink.labourlinkai.entity.Job;
+import java.util.Optional;
 import com.labourlink.labourlinkai.repository.ContractorRepository;
 import com.labourlink.labourlinkai.repository.JobRepository;
 import com.labourlink.labourlinkai.security.JwtFilter;
@@ -135,6 +140,49 @@ class BatchOneWebTest {
                         + "\"wagePerDay\":500,\"requiredWorkers\":1,\"startDate\":\"2026-11-01\"}"))
                 .andExpect(status().isBadRequest()).andExpect(jsonPath("$.data.scheduleValid").exists());
         verifyNoInteractions(jobs);
+    }
+
+    @Test
+    void recommendationsUseJwtIdentityAndDistinguishEmptyFromErrors() throws Exception {
+        String endpoint = "/jobs/recommendations/me";
+        mvc.perform(get(endpoint).param("details", "true")).andExpect(status().isUnauthorized());
+        mvc.perform(get(endpoint).param("details", "true").header("Authorization", "Bearer contractor"))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(jobs);
+
+        when(jobs.findRecommendationDetails("worker-phone"))
+                .thenReturn(new JobRecommendationsDTO(List.of(), List.of(Reason.LOCATION)));
+        mvc.perform(get(endpoint).param("details", "true").param("workerId", "999")
+                .header("Authorization", "Bearer worker"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.recommendations").isEmpty())
+                .andExpect(jsonPath("$.exclusions[0]").value("LOCATION"));
+        verify(jobs).findRecommendationDetails("worker-phone");
+
+        allowToken("another-worker", "separate-phone", "WORKER");
+        when(jobs.findRecommendationDetails("separate-phone")).thenThrow(new IllegalStateException("Worker not found"));
+        mvc.perform(get(endpoint).param("details", "true").header("Authorization", "Bearer another-worker"))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.recommendations").doesNotExist());
+        verify(jobs).findRecommendationDetails("separate-phone");
+
+        when(jobs.findRecommendedJobs("worker-phone")).thenReturn(List.of());
+        mvc.perform(get(endpoint).header("Authorization", "Bearer worker"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$").isArray());
+    }
+
+    @Test
+    void matchingWorkersAreAvailableOnlyToTheJobsContractor() throws Exception {
+        String endpoint = "/jobs/9/matches";
+        mvc.perform(get(endpoint).header("Authorization", "Bearer worker")).andExpect(status().isForbidden());
+        var contractor = new Contractor();
+        contractor.setContractorId(4L);
+        when(contractorRepository.findByPhone("contractor-phone")).thenReturn(Optional.of(contractor));
+        var job = new Job();
+        job.setContractorId(8L);
+        when(jobs.getJobById(9L)).thenReturn(job);
+        mvc.perform(get(endpoint).header("Authorization", "Bearer contractor")).andExpect(status().isForbidden());
+        job.setContractorId(4L);
+        mvc.perform(get(endpoint).header("Authorization", "Bearer contractor")).andExpect(status().isOk());
+        verify(jobs).findMatchingWorkers(9L, true);
     }
 
     private void allowToken(String token, String phone, String role) {

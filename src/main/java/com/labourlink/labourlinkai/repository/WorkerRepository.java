@@ -24,6 +24,9 @@ public interface WorkerRepository extends JpaRepository<Worker, Long> {
     // Find workers by skill
     List<Worker> findBySkillIgnoreCase(String skill);
 
+    @Query("select w from Worker w where lower(trim(w.skill)) = lower(:skill)")
+    List<Worker> findMatchingSkill(@Param("skill") String skill);
+
     // Find workers by location
     List<Worker> findByLocationIgnoreCase(String location);
 

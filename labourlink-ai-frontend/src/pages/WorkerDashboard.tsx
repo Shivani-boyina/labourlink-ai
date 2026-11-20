@@ -31,6 +31,11 @@ import { useFetch } from '../utils/useFetch';
 import { useAuth } from '../context/AuthContext';
 
 export default function WorkerDashboard() {
+  const { session } = useAuth();
+  return <WorkerDashboardContent key={session?.userId ?? 'anonymous'} />;
+}
+
+function WorkerDashboardContent() {
   const { t } = useTranslation();
   const { logout: clearAuth } = useAuth();
   const token = getToken();
@@ -59,10 +64,10 @@ export default function WorkerDashboard() {
     [worker?.workerId]
   );
   const recommendations = useFetch(
-    () => worker ? getMyRecommendations() : Promise.resolve([]),
+    () => worker ? getMyRecommendations() : Promise.resolve(null),
     [worker?.workerId]
   );
-  const recommended = recommendations.data ?? [];
+  const recommended = recommendations.loading || recommendations.error ? [] : recommendations.data?.recommendations ?? [];
   const allocations = useFetch(
     () => worker ? getAllocations('worker') : Promise.resolve([]),
     [worker?.workerId]
@@ -292,7 +297,7 @@ export default function WorkerDashboard() {
             )}
             {applyFailed && <p role="alert" className="text-sm text-red-700">{t('opportunity.applyFailure')}</p>}
 
-            {!recommendations.loading && !recommendations.error && recommendations.data?.length === 0 && (
+            {!recommendations.loading && !recommendations.error && recommendations.data?.recommendations.length === 0 && (
               <EmptyState
                 title={t('dashboardMatching.noEligible')}
                 text={t(worker.availability ? 'dashboardMatching.eligibility' : 'dashboardMatching.unavailableWorker')}
@@ -303,6 +308,14 @@ export default function WorkerDashboard() {
                   </Link>
                 }
               />
+            )}
+
+            {!recommendations.loading && !recommendations.error && !!recommendations.data?.exclusions.length && (
+              <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
+                {recommendations.data.exclusions.map((reason) => (
+                  <li key={reason}>{t('dashboardMatching.exclusions.' + reason)}</li>
+                ))}
+              </ul>
             )}
 
             <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">

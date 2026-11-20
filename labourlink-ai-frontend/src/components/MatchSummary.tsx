@@ -12,6 +12,7 @@ interface MatchSummaryProps {
     method: 'ML' | 'RULE_BASED';
     matchPercentage: number | null;
     fallbackReason: string | null;
+    featureIssues?: Array<{ feature: string; reason: string }>;
   } | null;
   reasons?: string[] | null;
 }
@@ -32,6 +33,13 @@ export default function MatchSummary({ score, recommendation, reasons }: MatchSu
       {value != null && <progress className="block h-2 w-full accent-blue-700" max={100} value={value} aria-label={label} />}
       <p>{reasons?.length ? reasons.map((reason) => t('mlMatching.reasons.' + reason)).join(' · ') : t('dashboardMatching.baseExplanation')}</p>
       {notice && <p>{t(notice)}</p>}
+      {!!recommendation?.featureIssues?.length && (
+        <ul className="list-disc pl-5">
+          {recommendation.featureIssues.map(({ feature, reason }) => (
+            <li key={feature}>{t('mlMatching.featureIssue.' + reason, { feature: t('mlMatching.features.' + feature) })}</li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
