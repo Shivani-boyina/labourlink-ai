@@ -28,7 +28,7 @@ export default function MatchSummary({ score, recommendation, reasons }: MatchSu
     <div className="space-y-1 rounded-xl bg-blue-50 p-3 text-sm text-blue-950">
       <p className="font-semibold">
         {label}
-        {value != null && ' · ' + new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 2 }).format(value) + '/100'}
+        {value != null && ' · ' + new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 2 }).format(value) + '%'}
       </p>
       {value != null && <progress className="block h-2 w-full accent-blue-700" max={100} value={value} aria-label={label} />}
       <p>{reasons?.length ? reasons.map((reason) => t('mlMatching.reasons.' + reason)).join(' · ') : t('dashboardMatching.baseExplanation')}</p>

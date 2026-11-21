@@ -124,6 +124,51 @@ class WorkerMatchingServiceTest {
         });
     }
 
+    @Test
+    void carpenterInVijayawadaWithZeroExperienceReceivesSortedEligibleMatches() {
+        var carpenter = worker();
+        carpenter.setLocation("Vijayawada");
+        carpenter.setExperience(0);
+        carpenter.setExpectedWagePerDay(500.0);
+        var opening = job(" vijayawada ");
+        opening.setMinimumExperience(0);
+        var applied = job("Vijayawada");
+        applied.setJobId(10L);
+        applied.setMinimumExperience(0);
+        var second = job("Vijayawada");
+        second.setJobId(11L);
+        second.setMinimumExperience(0);
+        when(history.monthlyAllocations(eq(List.of(7L)), any()))
+                .thenReturn(new MatchingDataRepository.AllocationHistory(Map.of(), Set.of()));
+        when(client.featureContract()).thenThrow(new ResourceAccessException("offline"));
+
+        var result = service.recommend(carpenter, List.of(second, applied, opening), candidate -> true, Set.of(10L));
+
+        assertThat(result.recommendations()).extracting(row -> row.getJob().getJobId()).containsExactly(9L, 11L);
+        assertThat(result.recommendations()).allSatisfy(row -> assertThat(row.getMatchingScore()).isEqualTo(100));
+        assertThat(result.excludedJobs()).containsEntry(10L, Reason.ALREADY_APPLIED);
+
+        carpenter.setExpectedWagePerDay(501.0);
+        assertThat(service.recommend(carpenter, List.of(opening), candidate -> true).excludedJobs())
+                .containsEntry(9L, Reason.WAGE);
+    }
+
+    @Test
+    void contractorFallbackMatchesUseDescendingDisplayedScore() {
+        var opening = job("Ramavara Padu");
+        var complete = worker();
+        var missingWage = worker();
+        missingWage.setWorkerId(8L);
+        missingWage.setExperience(12);
+        missingWage.setExpectedWagePerDay(null);
+        when(workers.findMatchingSkill("Carpenter")).thenReturn(List.of(missingWage, complete));
+        when(history.monthlyAllocations(eq(List.of(8L, 7L)), any()))
+                .thenReturn(new MatchingDataRepository.AllocationHistory(Map.of(), Set.of()));
+        when(client.featureContract()).thenThrow(new ResourceAccessException("offline"));
+
+        assertThat(service.find(opening, true)).extracting(row -> row.getMatchingScore()).containsExactly(100, 80);
+    }
+
     private Worker worker() {
         var worker = new Worker();
         worker.setWorkerId(7L);

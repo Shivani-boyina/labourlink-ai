@@ -375,6 +375,7 @@ function ContractorDashboardContent() {
                         <h4 className="font-bold text-slate-900">{worker.name}</h4>
                         <p className="text-sm text-slate-700">
                           {t('workerRegister.skills.' + worker.skill, worker.skill)} · {worker.experience ?? '—'} {t('workerDashboard.years')} · {worker.location}
+                          {worker.availability === true && <> · {t('workerRegister.availableForWork')}</>}
                         </p>
                         <MatchSummary score={worker.matchingScore} recommendation={worker.recommendation} reasons={worker.matchingReasons} />
                       </div>

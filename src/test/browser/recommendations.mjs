@@ -20,6 +20,7 @@ function installFixtures(role, scenario) {
     requiredSkill: 'Carpenter', location: 'Vijayawada', wagePerDay: 500,
     status: 'OPEN', requiredWorkers: 2,
   };
+  const excluded = { ...job, jobId: 2, title: 'Distant opening', location: 'Gudivada' };
   const fallback = { method: 'RULE_BASED', matchPercentage: null, fallbackReason: 'MODEL_UNAVAILABLE', featureIssues: [] };
   const ml = { method: 'ML', matchPercentage: 92.55, fallbackReason: null, featureIssues: [] };
   const identity = {
@@ -38,7 +39,7 @@ function installFixtures(role, scenario) {
       case '/workers/me':
         return Response.json(worker);
       case '/jobs':
-        return Response.json([job]);
+        return Response.json(role === 'worker' ? [excluded, job] : [job]);
       case '/jobs/recommendations/me':
         if (options.headers.Authorization !== 'Bearer fixture-bearer' || endpoint.searchParams.get('details') !== 'true') {
           return Response.json({}, { status: 403 });
@@ -49,7 +50,7 @@ function installFixtures(role, scenario) {
         return Response.json({
           recommendations: [{ job, matchingScore: 100, contractorName: 'Fixture contractor',
             recommendation: fallback, matchingReasons: ['SKILL', 'LOCATION'] }],
-          exclusions: [],
+          exclusions: [], excludedJobs: { 2: 'LOCATION' },
         });
       case '/jobs/1/matches':
         if (options.headers.Authorization !== 'Bearer fixture-bearer') return Response.json({}, { status: 403 });
@@ -157,13 +158,21 @@ try {
 
   const worker = '/worker/dashboard';
   await check(worker, ['AI Recommended Jobs', 'Fixture contractor', 'Rule-based compatibility score',
-    '100/100', 'Model scoring is unavailable', 'Cabinet installation']);
+    '100%', 'Future Work Opportunities', 'Model scoring is unavailable', 'Cabinet installation']);
   await check(worker + '?scenario=empty', ['No eligible jobs right now', 'Some jobs for your skill have a different location.',
     'All Available Jobs'], ['Rule-based compatibility score']);
   await check(worker + '?scenario=error', ['AI Recommended Jobs', 'All Available Jobs'], ['No eligible jobs right now'], true);
   await check(worker + '?scenario=invalid', ['The server returned an invalid recommendation response.'],
     ['No eligible jobs right now'], true);
-  await check('/contractor/dashboard', ['Recommended Workers', 'Fixture worker', 'ML match score', '92.55/100']);
+  await check('/jobs', ['100%', 'Not eligible', 'Distant opening', 'Cabinet installation']);
+  const { result: order } = await cdp('Runtime.evaluate', {
+    expression: "document.body.innerText.indexOf('Cabinet installation') < document.body.innerText.indexOf('Distant opening')",
+    returnByValue: true,
+  });
+  assert.equal(order.value, true, 'Find Work should place scored jobs before ineligible jobs');
+  await cdp('Emulation.setDeviceMetricsOverride', { width: 1366, height: 900, deviceScaleFactor: 1, mobile: false });
+  await check(worker, ['Future Work Opportunities', '100%', 'Not eligible']);
+  await check('/contractor/dashboard', ['Recommended Workers', 'Fixture worker', 'ML match score', '92.55%']);
 } finally {
   ws?.close();
   if (browser?.pid && browser.exitCode === null) {

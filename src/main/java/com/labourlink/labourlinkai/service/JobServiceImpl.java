@@ -258,10 +258,9 @@ public class JobServiceImpl implements JobService {
     public JobRecommendationsDTO findRecommendationDetails(String workerPhone) {
         Worker worker = workerRepository.findByPhone(workerPhone)
                 .orElseThrow(() -> new RuntimeException("Worker not found"));
-        if (!Boolean.TRUE.equals(worker.getAvailability())) {
-            return new JobRecommendationsDTO(List.of(), List.of(JobRecommendationsDTO.Reason.UNAVAILABLE));
-        }
-        var result = workerMatching.recommend(worker, jobRepository.findByStatus("OPEN"), this::isJobNotFull);
+        var appliedJobs = applicationRepository.findByWorkerId(worker.getWorkerId()).stream()
+                .map(application -> application.getJobId()).collect(Collectors.toSet());
+        var result = workerMatching.recommend(worker, jobRepository.findAll(), this::isJobNotFull, appliedJobs);
         var recommendations = result.recommendations();
         if (recommendations.isEmpty()) return result;
         var contractorIds = recommendations.stream().map(row -> row.getJob().getContractorId())

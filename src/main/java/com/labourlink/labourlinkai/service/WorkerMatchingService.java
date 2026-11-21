@@ -21,6 +21,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.Set;
 import java.util.function.Predicate;
 
 @Service
@@ -71,41 +73,51 @@ public class WorkerMatchingService {
         }
         if (includePrediction) {
             // The stable sort preserves experience order for fallback and equal scores.
-            matches.sort(Comparator.comparing(match -> match.getRecommendation().matchPercentage(),
-                    Comparator.nullsLast(Comparator.reverseOrder())));
+            matches.sort(Comparator.comparingDouble((JobMatchDTO match) -> displayScore(
+                    match.getRecommendation(), match.getMatchingScore())).reversed());
         }
         return matches;
     }
 
     JobRecommendationsDTO recommend(Worker worker, List<Job> candidates, Predicate<Job> hasCapacity) {
+        return recommend(worker, candidates, hasCapacity, Set.of());
+    }
+
+    JobRecommendationsDTO recommend(Worker worker, List<Job> candidates, Predicate<Job> hasCapacity,
+                                    Set<Long> appliedJobs) {
         if (candidates.isEmpty()) return new JobRecommendationsDTO(List.of(), List.of(Reason.NO_OPEN_JOBS));
 
         Instant now = Instant.now();
         LocalDate today = LocalDate.ofInstant(now, ZoneId.of("Asia/Kolkata"));
         var ids = List.of(worker.getWorkerId());
         var exclusions = EnumSet.noneOf(Reason.class);
+        var excludedJobs = new HashMap<Long, Reason>();
         List<Job> eligible = new ArrayList<>();
         for (Job job : candidates) {
             // Record the first failed criterion per job. Capacity and schedule reads only
             // run for jobs that already meet the profile requirements.
-            Reason reason = profileExclusion(job, worker);
+            Reason reason = !"OPEN".equalsIgnoreCase(MatchingText.normalize(job.getStatus())) ? Reason.CLOSED
+                    : appliedJobs.contains(job.getJobId()) ? Reason.ALREADY_APPLIED : profileExclusion(job, worker);
             if (reason == null && job.getEndDate() != null && job.getEndDate().isBefore(today)) reason = Reason.EXPIRED;
             if (reason == null && !hasCapacity.test(job)) reason = Reason.NO_OPEN_SLOTS;
             if (reason == null && !history.unavailableFor(ids, job, now).isEmpty()) reason = Reason.SCHEDULE;
             if (reason == null) eligible.add(job);
-            else exclusions.add(reason);
+            else {
+                exclusions.add(reason);
+                excludedJobs.put(job.getJobId(), reason);
+            }
         }
-        if (eligible.isEmpty()) return new JobRecommendationsDTO(List.of(), List.copyOf(exclusions));
+        if (eligible.isEmpty()) return new JobRecommendationsDTO(List.of(), List.copyOf(exclusions), excludedJobs);
         var rating = reviews.ratings(ids).getOrDefault(worker.getWorkerId(), ReviewReadRepository.Rating.UNRATED);
         var month = history.monthlyAllocations(ids, MatchingDataRepository.Month.containing(now)).countFor(worker.getWorkerId());
         var batch = scoring.batch();
         var recommendations = eligible.stream()
                 .map(job -> new JobSearchDTO(job, recommendationScore(job, worker),
                         batch.score(MLFeatureMapper.from(worker, job, rating, month)), reasons(job, worker)))
-                .sorted(Comparator.comparingDouble(WorkerMatchingService::displayScore).reversed()
+                .sorted(Comparator.comparingDouble((JobSearchDTO row) -> displayScore(row.getRecommendation(), row.getMatchingScore())).reversed()
                         .thenComparing(row -> row.getJob().getJobId()))
                 .toList();
-        return new JobRecommendationsDTO(recommendations, List.of());
+        return new JobRecommendationsDTO(recommendations, List.of(), excludedJobs);
     }
 
     private static int recommendationScore(Job job, Worker worker) {
@@ -126,9 +138,9 @@ public class WorkerMatchingService {
         return score;
     }
 
-    private static double displayScore(JobSearchDTO row) {
-        Double model = row.getRecommendation().matchPercentage();
-        return model == null ? row.getMatchingScore() : model;
+    private static double displayScore(MLMatchScoring.Result recommendation, int rulesScore) {
+        Double model = recommendation.matchPercentage();
+        return model == null ? rulesScore : model;
     }
 
     public static boolean eligibleProfile(Job job, Worker worker) {
@@ -168,6 +180,6 @@ public class WorkerMatchingService {
     }
 
     private static boolean sameSkill(String left, String right) {
-        return left != null && !left.isBlank() && right != null && left.strip().equalsIgnoreCase(right.strip());
+        return same(left, right);
     }
 }

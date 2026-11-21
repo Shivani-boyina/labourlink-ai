@@ -18,6 +18,7 @@ import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import MatchSummary from '../components/MatchSummary';
+import JobMatchStatus, { orderJobsByMatch } from '../components/JobMatchStatus';
 import JobCard from '../components/JobCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
@@ -25,7 +26,6 @@ import EmptyState from '../components/EmptyState';
 import { getMyWorker } from '../services/workerService';
 import { getJobs, getMyRecommendations } from '../services/jobService';
 import { applyForJob, getMyApplications } from '../services/applicationService';
-import { getAllocations } from '../services/allocationService';
 import { getToken } from '../utils/storage';
 import { useFetch } from '../utils/useFetch';
 import { useAuth } from '../context/AuthContext';
@@ -42,7 +42,6 @@ function WorkerDashboardContent() {
   const [applying, setApplying] = useState<number | null>(null);
   const [submitted, setSubmitted] = useState<number[]>([]);
   const [applyFailed, setApplyFailed] = useState(false);
-  const [employmentDays, setEmploymentDays] = useState<7 | 30>(7);
 
   const prof = useFetch(
     async () => {
@@ -68,23 +67,6 @@ function WorkerDashboardContent() {
     [worker?.workerId]
   );
   const recommended = recommendations.loading || recommendations.error ? [] : recommendations.data?.recommendations ?? [];
-  const allocations = useFetch(
-    () => worker ? getAllocations('worker') : Promise.resolve([]),
-    [worker?.workerId]
-  );
-  const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Kolkata' }).format(new Date());
-  const scheduledDays = Array.from({ length: employmentDays }, (_, offset) => {
-    const day = new Date(`${today}T00:00:00Z`);
-    day.setUTCDate(day.getUTCDate() - offset);
-    return day.toISOString().slice(0, 10);
-  }).filter(day => allocations.data?.some(allocation =>
-    (allocation.status === 'ACTIVE' || allocation.status === 'COMPLETED') &&
-    allocation.startDate && allocation.endDate &&
-    allocation.startDate <= day && allocation.endDate >= day
-  )).length;
-  const employmentPercentage = new Intl.NumberFormat(undefined, {
-    style: 'percent', maximumFractionDigits: 1,
-  }).format(scheduledDays / employmentDays);
   const applied = new Set([...submitted, ...(applications.data ?? []).map((application) => application.jobId)]);
 
   async function apply(jobId: number) {
@@ -94,6 +76,7 @@ function WorkerDashboardContent() {
       await applyForJob(jobId);
       setSubmitted((previous) => [...previous, jobId]);
       applications.reload();
+      recommendations.reload();
     } catch {
       setApplyFailed(true);
       applications.reload();
@@ -290,11 +273,20 @@ function WorkerDashboardContent() {
             {recommendations.loading && <LoadingSpinner label={t('workerDashboard.loadingJobs')} />}
             {recommendations.error && <ErrorMessage message={recommendations.error} onRetry={recommendations.reload} />}
 
-            {!recommendations.loading && !recommendations.error && recommendations.data && (
-              <p role="status" className="text-sm text-slate-700">
-                {t('dashboardMatching.count', { count: recommended.length })}
-              </p>
-            )}
+            <section className="card space-y-2 p-4">
+              <h3 className="font-semibold text-blue-950">{t('dashboardMatching.opportunities')}</h3>
+              <p>{t('dashboardMatching.opportunitiesExplanation')}</p>
+              {!recommendations.loading && !recommendations.error && recommendations.data && (
+                <>
+                  <p role="status">{t('dashboardMatching.count', { count: recommended.length })}</p>
+                  {recommended[0] && (
+                    <p>{t('dashboardMatching.bestScore', {
+                      score: recommended[0].recommendation?.matchPercentage ?? recommended[0].matchingScore,
+                    })}</p>
+                  )}
+                </>
+              )}
+            </section>
             {applyFailed && <p role="alert" className="text-sm text-red-700">{t('opportunity.applyFailure')}</p>}
 
             {!recommendations.loading && !recommendations.error && recommendations.data?.recommendations.length === 0 && (
@@ -359,8 +351,13 @@ function WorkerDashboardContent() {
             )}
 
             <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-              {jobs.data?.slice(0, 6).map((job) => (
-                <JobCard key={job.jobId} job={job} />
+              {orderJobsByMatch(jobs.data ?? [], recommendations.error || recommendations.loading ? null : recommendations.data)
+                .slice(0, 6).map((job) => (
+                  <div key={job.jobId} className="flex flex-col gap-2">
+                    <JobMatchStatus id={job.jobId} loading={recommendations.loading}
+                      details={recommendations.error || recommendations.loading ? null : recommendations.data} />
+                    <JobCard job={job} />
+                  </div>
               ))}
             </div>
           </div>
@@ -430,28 +427,7 @@ function WorkerDashboardContent() {
             )}
           </div>
 
-            <section className="space-y-2 rounded-xl bg-white p-4 border border-slate-200">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h3 className="font-semibold text-blue-950">{t('workerEmployment.title')}</h3>
-                <label className="flex items-center gap-2 text-sm">
-                  {t('workerEmployment.period')}
-                  <select value={employmentDays} className="rounded-lg border border-slate-300 bg-white p-2"
-                    onChange={event => setEmploymentDays(event.target.value === '30' ? 30 : 7)}>
-                    <option value={7}>{t('workerEmployment.weekly')}</option>
-                    <option value={30}>{t('workerEmployment.monthly')}</option>
-                  </select>
-                </label>
-              </div>
-              {allocations.loading && <LoadingSpinner label={t('workerEmployment.loading')} />}
-              {allocations.error && <ErrorMessage message={allocations.error} onRetry={allocations.reload} />}
-              {!allocations.loading && !allocations.error && allocations.data && (
-                <p aria-live="polite" className="text-sm text-slate-700">
-                  <strong className="mr-2 text-xl text-blue-900">{employmentPercentage}</strong>
-                  {t('workerEmployment.days', { count: scheduledDays, total: employmentDays })}
-                </p>
-              )}
-              <p className="text-sm text-slate-600">{t('workerEmployment.explanation')}</p>
-            </section>
+
         </>
       )}
     </div>

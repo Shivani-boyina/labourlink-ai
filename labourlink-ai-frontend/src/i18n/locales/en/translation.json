@@ -1,7 +1,14 @@
 {
   "dashboardMatching": {
+    "ineligible": "Not eligible",
+    "unscorable": "Match score unavailable",
+    "opportunities": "Future Work Opportunities",
+    "opportunitiesExplanation": "Based on suitable openings you can apply to now. Check the recommendations below for job details.",
+    "bestScore": "Highest match score: {{score}}%",
     "invalidResponse": "The server returned an invalid recommendation response.",
     "exclusions": {
+      "CLOSED": "This job is closed.",
+      "ALREADY_APPLIED": "You already applied for this job.",
       "UNAVAILABLE": "Your profile is set to unavailable.",
       "NO_OPEN_JOBS": "There are no open jobs.",
       "SKILL": "Some open jobs require a different skill.",

@@ -80,9 +80,10 @@ export interface JobRecommendation {
   } | null;
 }
 
-interface RecommendationDetails {
+export interface RecommendationDetails {
   recommendations: JobRecommendation[];
   exclusions: string[];
+  excludedJobs?: Record<string, string>;
 }
 
 function validScore(value: unknown): value is number {
@@ -99,8 +100,12 @@ export async function getMyRecommendations(): Promise<RecommendationDetails> {
   // Older backend deployments return the original array.
   const result = Array.isArray(payload) ? { recommendations: payload, exclusions: [] } : payload;
   if (!Array.isArray(result?.recommendations) ||
-      result.recommendations.some((row) => !row?.job || !validScore(row.matchingScore)) ||
-      !Array.isArray(result.exclusions) || result.exclusions.some((reason) => typeof reason !== 'string')) {
+      result.recommendations.some((row) => !Number.isSafeInteger(row?.job?.jobId) ||
+        !validScore(row.matchingScore) ||
+        (row.recommendation?.method === 'ML' && !validScore(row.recommendation.matchPercentage))) ||
+      !Array.isArray(result.exclusions) || result.exclusions.some((reason) => typeof reason !== 'string') ||
+      (result.excludedJobs !== undefined && (result.excludedJobs === null || typeof result.excludedJobs !== 'object' ||
+        Array.isArray(result.excludedJobs) || Object.values(result.excludedJobs).some((reason) => typeof reason !== 'string')))) {
     throw new ApiError(i18n.t('dashboardMatching.invalidResponse'), 502);
   }
   return result;

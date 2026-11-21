@@ -6,12 +6,22 @@ import JobCard from '../components/JobCard';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
 import EmptyState from '../components/EmptyState';
-import { searchJobs } from '../services/jobService';
+import JobMatchStatus, { orderJobsByMatch } from '../components/JobMatchStatus';
+import { useAuth } from '../context/AuthContext';
+import { getMyRecommendations, searchJobs } from '../services/jobService';
 import { useFetch } from '../utils/useFetch';
 import { SKILLS } from './WorkerRegister';
 import type { JobFilters } from '../types/Job';
 
 export default function Jobs() {
+  const { session } = useAuth();
+  const workerId = session?.role === 'worker' ? session.userId : null;
+  return <JobResults key={workerId ?? 'public'} personalized={workerId !== null} />;
+}
+
+function JobResults({ personalized }: { personalized: boolean }) {
+  const matching = useFetch(() => personalized ? getMyRecommendations() : Promise.resolve(null), [personalized]);
+  const details = matching.loading || matching.error ? null : matching.data;
   const { t } = useTranslation();
 
   const [draft, setDraft] = useState<JobFilters>({
@@ -220,6 +230,10 @@ export default function Jobs() {
         </div>
       </form>
 
+      {personalized && matching.error && (
+        <ErrorMessage message={matching.error} onRetry={matching.reload} />
+      )}
+
       {/* Results Section */}
       <div className="mt-8">
         {loading && (
@@ -252,11 +266,12 @@ export default function Jobs() {
             </div>
 
             <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-              {[...data]
-                .sort((a, b) => b.jobId - a.jobId)
-                .map((j) => (
-                  <JobCard key={j.jobId} job={j} />
-                ))}
+              {orderJobsByMatch([...data].sort((a, b) => b.jobId - a.jobId), details).map((job) => (
+                <div key={job.jobId} className="flex flex-col gap-2">
+                  {personalized && <JobMatchStatus id={job.jobId} loading={matching.loading} details={details} />}
+                  <JobCard job={job} />
+                </div>
+              ))}
             </div>
           </>
         )}
