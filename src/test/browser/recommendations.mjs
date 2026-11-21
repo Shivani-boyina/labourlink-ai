@@ -170,9 +170,14 @@ try {
   }
 
   const worker = '/worker/dashboard';
-  await check(worker, ['AI Recommended Jobs', 'Fixture contractor', 'Overall rules-based compatibility score',
-    'Skill match 100%', 'Future Work Opportunities', 'Model scoring is unavailable', 'Cabinet installation'],
-    ['7-Day Employment Probability', '30-Day Employment Probability']);
+  const removedEmploymentText = [
+    '7-Day Employment Probability', '30-Day Employment Probability', 'Future Work Opportunities',
+    'recommended job', 'Highest match score', 'Employment forecasts require',
+    'భవిష్యత్ పని అవకాశాలు', 'అత్యధిక సరిపోలిక స్కోరు', 'ఉపాధి అంచనాలకు',
+  ];
+  await check(worker, ['Fixture worker', 'AI Recommended Jobs', 'All Available Jobs', 'Recent Applications',
+    'Fixture contractor', 'Overall rules-based compatibility score', 'Skill match 100%',
+    'Model scoring is unavailable', 'Cabinet installation'], removedEmploymentText);
   await check(worker + '?scenario=empty', ['No eligible jobs right now', 'Some jobs for your skill have a different location.',
     'All Available Jobs'], ['Overall rules-based compatibility score']);
   await check(worker + '?scenario=error', ['AI Recommended Jobs', 'All Available Jobs'], ['No eligible jobs right now'], true);
@@ -191,9 +196,9 @@ try {
     returnByValue: true,
   });
   assert.equal(disabled.value, true, 'Existing applicants cannot reapply');
-  await check(worker + '?scenario=telugu', ['నైపుణ్య సరిపోలిక 100%', 'భవిష్యత్ పని అవకాశాలు']);
+  await check(worker + '?scenario=telugu', ['నైపుణ్య సరిపోలిక 100%', 'ఏఐ సిఫార్సు చేసిన ఉద్యోగాలు'], removedEmploymentText);
   await cdp('Emulation.setDeviceMetricsOverride', { width: 1366, height: 900, deviceScaleFactor: 1, mobile: false });
-  await check(worker, ['Future Work Opportunities', '100%', 'Not eligible']);
+  await check(worker, ['AI Recommended Jobs', 'All Available Jobs', 'Skill match 100%', 'Not eligible'], removedEmploymentText);
   await check('/contractor/dashboard', ['Recommended Workers', 'Fixture worker', 'Overall ML match score', 'Skill match 100%', 'Eligible', '92.55%']);
   await check('/jobs/1/matches', ['Skill match 100%', 'Overall ML match score', '92.55%'], ['6990000903']);
 } finally {

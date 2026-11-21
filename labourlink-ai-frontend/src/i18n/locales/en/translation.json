@@ -4,12 +4,8 @@
     "skillUnavailable": "Skill match unavailable",
     "eligible": "Eligible",
     "wageBelowExpected": "This job offers ₹{{wage}} per day, below your expected daily wage.",
-    "forecastEvidence": "Employment forecasts require dated worker snapshots and verified job starts with at least 30 days of follow-up.",
     "ineligible": "Not eligible",
     "unscorable": "Match score unavailable",
-    "opportunities": "Future Work Opportunities",
-    "opportunitiesExplanation": "Based on suitable openings you can apply to now. Check the recommendations below for job details.",
-    "bestScore": "Highest match score: {{score}}%",
     "invalidResponse": "The server returned an invalid recommendation response.",
     "exclusions": {
       "CLOSED": "This job is closed.",
@@ -26,8 +22,6 @@
       "SCHEDULE": "Some matching jobs conflict with your work schedule or you have already been accepted."
     },
     "jobs": "AI Recommended Jobs",
-    "count_one": "{{count}} recommended job",
-    "count_other": "{{count}} recommended jobs",
     "noEligible": "No eligible jobs right now",
     "eligibility": "Recommendations depend on skill, location, wage, experience, schedule and open slots. You can still browse all available jobs below.",
     "unavailableWorker": "Set your profile availability to Available to receive job recommendations.",
@@ -38,15 +32,6 @@
     "mlScore": "Overall ML match score",
     "ruleScore": "Overall rules-based compatibility score",
     "baseExplanation": "Skill and location match. Availability and job requirements were checked."
-  },
-  "workerEmployment": {
-    "title": "My employment percentage",
-    "period": "Period",
-    "weekly": "Weekly (last 7 days)",
-    "monthly": "Monthly (last 30 days)",
-    "loading": "Loading your work schedule…",
-    "days": "{{count}} of {{total}} days scheduled",
-    "explanation": "Based on your dated active and completed allocations through today. Attendance is tracked separately."
   },
   "opportunity": {
     "title": "AI job opportunities",

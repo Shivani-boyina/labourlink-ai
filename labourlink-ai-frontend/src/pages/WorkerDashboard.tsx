@@ -243,22 +243,6 @@ function WorkerDashboardContent() {
             </div>
           </div>
 
-            <section className="card space-y-2 p-4">
-              <h2 className="font-semibold text-blue-950">{t('dashboardMatching.opportunities')}</h2>
-              <p>{t('dashboardMatching.opportunitiesExplanation')}</p>
-              <p>{t('dashboardMatching.forecastEvidence')}</p>
-              {!recommendations.loading && !recommendations.error && recommendations.data && (
-                <>
-                  <p role="status">{t('dashboardMatching.count', { count: recommended.length })}</p>
-                  {recommended[0] && (
-                    <p>{t('dashboardMatching.bestScore', {
-                      score: recommended[0].recommendation?.matchPercentage ?? recommended[0].matchingScore,
-                    })}</p>
-                  )}
-                </>
-              )}
-            </section>
-
           {/* Matching Jobs for Worker */}
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
