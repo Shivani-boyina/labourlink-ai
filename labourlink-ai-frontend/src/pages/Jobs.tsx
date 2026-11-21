@@ -268,7 +268,7 @@ function JobResults({ personalized }: { personalized: boolean }) {
             <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
               {orderJobsByMatch([...data].sort((a, b) => b.jobId - a.jobId), details).map((job) => (
                 <div key={job.jobId} className="flex flex-col gap-2">
-                  {personalized && <JobMatchStatus id={job.jobId} loading={matching.loading} details={details} />}
+                  {personalized && <JobMatchStatus job={job} loading={matching.loading} details={details} />}
                   <JobCard job={job} />
                 </div>
               ))}

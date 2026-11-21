@@ -8,7 +8,7 @@ import EmptyState from '../components/EmptyState';
 import WorkerCard from '../components/WorkerCard';
 import { getJob, getMatches } from '../services/jobService';
 import { useFetch } from '../utils/useFetch';
-import type { WorkerMatch } from '../types/Worker';
+import MatchSummary from '../components/MatchSummary';
 
 export default function JobMatches() {
   const { id = '' } = useParams();
@@ -85,7 +85,8 @@ function MatchesForJob({ id }: { id: string }) {
             <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
               {m.data.map((w) => (
                 <div key={w.workerId} className="space-y-2">
-                  <MatchingEvidence match={w} />
+                  <MatchSummary skill={w.skillMatch} eligibility={t('dashboardMatching.eligible')}
+                    score={w.matchingScore} recommendation={w.recommendation} reasons={w.matchingReasons} />
                   <WorkerCard worker={w} job={job.data ?? undefined} />
                 </div>
               ))}
@@ -95,36 +96,4 @@ function MatchesForJob({ id }: { id: string }) {
       </div>
     </div>
   );
-}
-
-function MatchingEvidence({ match }: { match: WorkerMatch }) {
-  const { t, i18n } = useTranslation();
-  const result = match.recommendation;
-  if (!result) return null;
-  const modelScore = result.method === 'ML' ? result.matchPercentage : null;
-  const notices = {
-    FEATURES_UNAVAILABLE: 'mlMatching.featuresUnavailable',
-    MODEL_UNAVAILABLE: 'mlMatching.modelUnavailable',
-    SCORING_LIMIT: 'mlMatching.scoringLimit',
-  };
-
-  return <section className="space-y-2 rounded-xl border border-slate-200 bg-white p-4 text-sm">
-    <p className="font-bold text-slate-900">
-      {t(modelScore != null ? 'mlMatching.model' : 'mlMatching.rules')}
-      {modelScore != null && ' · ' + new Intl.NumberFormat(i18n.language, {
-        style: 'percent', maximumFractionDigits: 2,
-      }).format(modelScore / 100)}
-    </p>
-    <ul className="flex flex-wrap gap-1.5">
-      {match.matchingReasons?.map((reason) =>
-        <li className="rounded bg-slate-100 px-2 py-1" key={reason}>{t('mlMatching.reasons.' + reason)}</li>)}
-    </ul>
-    {modelScore != null && <p className="text-slate-700">{t('mlMatching.modelNote')}</p>}
-    {modelScore == null && result.fallbackReason && <p className="text-slate-700">{t(notices[result.fallbackReason])}</p>}
-    {result.featureIssues.length > 0 && <ul className="list-disc space-y-1 pl-5 text-slate-700">
-      {result.featureIssues.map((issue) => <li key={issue.feature}>
-        {t('mlMatching.featureIssue.' + issue.reason, { feature: t('mlMatching.features.' + issue.feature) })}
-      </li>)}
-    </ul>}
-  </section>;
 }

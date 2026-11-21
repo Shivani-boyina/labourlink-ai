@@ -20,7 +20,9 @@ export interface Worker {
 
 export type WorkerInput = Omit<Worker, 'workerId'>;
 
-export interface WorkerMatch extends Worker {
+export interface WorkerMatch extends Omit<Worker, 'phone'> {
+  phone?: string | null;
+  skillMatch?: number;
   matchingReasons?: string[];
   matchingScore?: number | null;
   recommendation?: {

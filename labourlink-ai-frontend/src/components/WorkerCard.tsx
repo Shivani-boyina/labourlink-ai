@@ -7,7 +7,7 @@ import WorkerRating from './WorkerRating';
 
 const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
-export default function WorkerCard({ worker, job, distanceKm }: { worker: Worker; job?: Job; distanceKm?: number }) {
+export default function WorkerCard({ worker, job, distanceKm }: { worker: Omit<Worker, 'phone'> & { phone?: string | null }; job?: Job; distanceKm?: number }) {
   const { t, i18n } = useTranslation();
   const tags: string[] = [];
   if (job && same(worker.skill, job.requiredSkill)) tags.push(t('workerCard.skillMatchesJob'));
@@ -22,7 +22,7 @@ export default function WorkerCard({ worker, job, distanceKm }: { worker: Worker
       {/* Header with worker name and availability */}
       <div className="space-y-2">
         <div className="flex items-start justify-between gap-2">
-          <div><h3 className="text-xl font-bold text-slate-900">{worker.name}</h3><SpeakButton language={i18n.resolvedLanguage} label={`Read ${worker.name}'s worker details`} text={`${worker.name}. ${localizedSkill} worker. ${worker.experience} years of experience. Service area ${worker.location}. ${distanceKm != null ? `About ${distanceKm.toFixed(1)} kilometres away.` : ''} ${worker.availability ? 'Available for work.' : 'Currently busy.'} ${worker.expectedWagePerDay != null ? `Expected daily wage: ${worker.expectedWagePerDay} rupees.` : ''} Contact number: ${worker.phone}.`} /></div>
+          <div><h3 className="text-xl font-bold text-slate-900">{worker.name}</h3><SpeakButton language={i18n.resolvedLanguage} label={`Read ${worker.name}'s worker details`} text={`${worker.name}. ${localizedSkill} worker. ${worker.experience} years of experience. Service area ${worker.location}. ${distanceKm != null ? `About ${distanceKm.toFixed(1)} kilometres away.` : ''} ${worker.availability ? 'Available for work.' : 'Currently busy.'} ${worker.expectedWagePerDay != null ? `Expected daily wage: ${worker.expectedWagePerDay} rupees.` : ''}${worker.phone ? ' Contact number: ' + worker.phone + '.' : ''}`} /></div>
           <span
             className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${
               worker.availability
@@ -69,11 +69,13 @@ export default function WorkerCard({ worker, job, distanceKm }: { worker: Worker
           </li>
         )}
 
+        {worker.phone && (
         <li className="flex items-center gap-2">
           <Phone size={16} className="text-blue-600 shrink-0" aria-hidden />
           <span className="text-slate-600">{t('workerCard.contactLabel')}</span>
           <strong className="text-slate-900 font-semibold">{worker.phone}</strong>
         </li>
+        )}
       </ul>
 
       {/* Match tags if any */}
@@ -91,6 +93,7 @@ export default function WorkerCard({ worker, job, distanceKm }: { worker: Worker
       )}
 
       {/* Direct Call Button */}
+      {worker.phone && (
       <a
         href={`tel:${worker.phone}`}
         className="btn-outline w-full text-center text-sm font-semibold !py-2.5 flex items-center justify-center gap-2 mt-1"
@@ -98,6 +101,7 @@ export default function WorkerCard({ worker, job, distanceKm }: { worker: Worker
         <Phone size={16} aria-hidden />
         <span>{t('workerCard.callWorker', { phone: worker.phone })}</span>
       </a>
+      )}
     </article>
   );
 }

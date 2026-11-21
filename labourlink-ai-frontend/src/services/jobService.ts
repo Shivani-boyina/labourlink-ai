@@ -84,6 +84,7 @@ export interface RecommendationDetails {
   recommendations: JobRecommendation[];
   exclusions: string[];
   excludedJobs?: Record<string, string>;
+  compatibility?: Record<string, { skillMatch: number; rulesScore: number }>;
 }
 
 function validScore(value: unknown): value is number {
@@ -106,6 +107,12 @@ export async function getMyRecommendations(): Promise<RecommendationDetails> {
       !Array.isArray(result.exclusions) || result.exclusions.some((reason) => typeof reason !== 'string') ||
       (result.excludedJobs !== undefined && (result.excludedJobs === null || typeof result.excludedJobs !== 'object' ||
         Array.isArray(result.excludedJobs) || Object.values(result.excludedJobs).some((reason) => typeof reason !== 'string')))) {
+    throw new ApiError(i18n.t('dashboardMatching.invalidResponse'), 502);
+  }
+  if (result.compatibility !== undefined &&
+      (!result.compatibility || typeof result.compatibility !== 'object' || Array.isArray(result.compatibility) ||
+        Object.values(result.compatibility).some((entry) =>
+          !validScore(entry?.skillMatch) || !validScore(entry?.rulesScore)))) {
     throw new ApiError(i18n.t('dashboardMatching.invalidResponse'), 502);
   }
   return result;
@@ -186,7 +193,10 @@ export async function getMatches(
     auth: true,
     query: { includePrediction: String(includePrediction) },
   });
-  if (!Array.isArray(matches) || matches.some((worker) => !Number.isSafeInteger(worker?.workerId))) {
+  if (!Array.isArray(matches) || matches.some((worker) => !Number.isSafeInteger(worker?.workerId) ||
+      (worker.skillMatch != null && !validScore(worker.skillMatch)) ||
+      (worker.matchingScore != null && !validScore(worker.matchingScore)) ||
+      (worker.recommendation?.method === 'ML' && !validScore(worker.recommendation.matchPercentage)))) {
     throw new ApiError(i18n.t('dashboardMatching.invalidResponse'), 502);
   }
   return matches;

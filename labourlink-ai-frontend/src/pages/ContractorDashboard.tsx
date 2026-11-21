@@ -377,7 +377,7 @@ function ContractorDashboardContent() {
                           {t('workerRegister.skills.' + worker.skill, worker.skill)} · {worker.experience ?? '—'} {t('workerDashboard.years')} · {worker.location}
                           {worker.availability === true && <> · {t('workerRegister.availableForWork')}</>}
                         </p>
-                        <MatchSummary score={worker.matchingScore} recommendation={worker.recommendation} reasons={worker.matchingReasons} />
+                        <MatchSummary skill={worker.skillMatch} eligibility={t('dashboardMatching.eligible')} score={worker.matchingScore} recommendation={worker.recommendation} reasons={worker.matchingReasons} />
                       </div>
                     ))}
                   </div>

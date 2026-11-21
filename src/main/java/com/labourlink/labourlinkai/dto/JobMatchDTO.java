@@ -18,6 +18,7 @@ public class JobMatchDTO {
     private MLMatchScoring.Result recommendation;
     private List<String> matchingReasons;
     private Integer matchingScore;
+    private int skillMatch;
 
     public JobMatchDTO() {
     }
@@ -106,6 +107,9 @@ public class JobMatchDTO {
     public long getReviewCount() { return reviewCount; }
     public MLMatchScoring.Result getRecommendation() { return recommendation; }
     public List<String> getMatchingReasons() { return matchingReasons; }
+
+    public int getSkillMatch() { return skillMatch; }
+    public void setSkillMatch(int skillMatch) { this.skillMatch = skillMatch; }
 
     public Integer getMatchingScore() { return matchingScore; }
     public void setMatchingScore(Integer matchingScore) { this.matchingScore = matchingScore; }

@@ -119,6 +119,8 @@ class WorkerMatchingServiceTest {
 
         assertThat(service.find(job, true)).singleElement().satisfies(row -> {
             assertThat(row.getWorkerId()).isEqualTo(7L);
+            assertThat(row.getSkillMatch()).isEqualTo(100);
+            assertThat(row.getPhone()).isNull();
             assertThat(row.getMatchingScore()).isEqualTo(100);
             assertThat(row.getRecommendation().fallbackReason()).isEqualTo("MODEL_UNAVAILABLE");
         });
@@ -142,15 +144,23 @@ class WorkerMatchingServiceTest {
                 .thenReturn(new MatchingDataRepository.AllocationHistory(Map.of(), Set.of()));
         when(client.featureContract()).thenThrow(new ResourceAccessException("offline"));
 
-        var result = service.recommend(carpenter, List.of(second, applied, opening), candidate -> true, Set.of(10L));
+        var plumbing = job("Vijayawada");
+        plumbing.setJobId(12L);
+        plumbing.setRequiredSkill("Plumber");
+        var result = service.recommend(carpenter, List.of(second, applied, opening, plumbing), candidate -> true, Set.of(10L));
 
         assertThat(result.recommendations()).extracting(row -> row.getJob().getJobId()).containsExactly(9L, 11L);
         assertThat(result.recommendations()).allSatisfy(row -> assertThat(row.getMatchingScore()).isEqualTo(100));
-        assertThat(result.excludedJobs()).containsEntry(10L, Reason.ALREADY_APPLIED);
+        assertThat(result.excludedJobs()).containsEntry(10L, Reason.ALREADY_APPLIED).containsEntry(12L, Reason.SKILL);
+        assertThat(result.compatibility().get(9L).skillMatch()).isEqualTo(100);
+        assertThat(result.compatibility().get(10L).skillMatch()).isEqualTo(100);
+        assertThat(result.compatibility().get(12L).skillMatch()).isZero();
 
         carpenter.setExpectedWagePerDay(501.0);
-        assertThat(service.recommend(carpenter, List.of(opening), candidate -> true).excludedJobs())
-                .containsEntry(9L, Reason.WAGE);
+        var underpaid = service.recommend(carpenter, List.of(opening), candidate -> true);
+        assertThat(underpaid.excludedJobs()).containsEntry(9L, Reason.WAGE);
+        assertThat(underpaid.compatibility().get(9L).skillMatch()).isEqualTo(100);
+        assertThat(underpaid.recommendations()).isEmpty();
     }
 
     @Test

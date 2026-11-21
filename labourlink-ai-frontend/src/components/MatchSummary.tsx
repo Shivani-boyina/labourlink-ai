@@ -8,6 +8,9 @@ const notices: Record<string, string> = {
 
 interface MatchSummaryProps {
   score?: number | null;
+  skill?: number;
+  eligibility?: string;
+  showExplanation?: boolean;
   recommendation?: {
     method: 'ML' | 'RULE_BASED';
     matchPercentage: number | null;
@@ -17,21 +20,24 @@ interface MatchSummaryProps {
   reasons?: string[] | null;
 }
 
-export default function MatchSummary({ score, recommendation, reasons }: MatchSummaryProps) {
+export default function MatchSummary({ score, recommendation, reasons, skill, eligibility, showExplanation = true }: MatchSummaryProps) {
   const { t, i18n } = useTranslation();
   const mlScore = recommendation?.method === 'ML' ? recommendation.matchPercentage : null;
   const value = mlScore ?? score;
-  const label = t(mlScore != null ? 'dashboardMatching.mlScore' : 'dashboardMatching.ruleScore');
+  const label = t(value == null ? 'dashboardMatching.unscorable' : mlScore != null ? 'dashboardMatching.mlScore' : 'dashboardMatching.ruleScore');
   const notice = recommendation?.fallbackReason && notices[recommendation.fallbackReason];
 
   return (
     <div className="space-y-1 rounded-xl bg-blue-50 p-3 text-sm text-blue-950">
+      <p className="font-semibold">{skill == null ? t('dashboardMatching.skillUnavailable') :
+        t('dashboardMatching.skillPercent', { score: skill })}</p>
+      {eligibility && <p>{eligibility}</p>}
       <p className="font-semibold">
         {label}
         {value != null && ' · ' + new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 2 }).format(value) + '%'}
       </p>
       {value != null && <progress className="block h-2 w-full accent-blue-700" max={100} value={value} aria-label={label} />}
-      <p>{reasons?.length ? reasons.map((reason) => t('mlMatching.reasons.' + reason)).join(' · ') : t('dashboardMatching.baseExplanation')}</p>
+      {showExplanation && <p>{reasons?.length ? reasons.map((reason) => t('mlMatching.reasons.' + reason)).join(' · ') : t('dashboardMatching.baseExplanation')}</p>}
       {notice && <p>{t(notice)}</p>}
       {!!recommendation?.featureIssues?.length && (
         <ul className="list-disc pl-5">

@@ -17,13 +17,19 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorMessage from '../components/ErrorMessage';
 import { StatusBadge } from '../components/JobCard';
 import { useAuth } from '../context/AuthContext';
-import { getJob } from '../services/jobService';
+import JobMatchStatus from '../components/JobMatchStatus';
+import { getJob, getMyRecommendations } from '../services/jobService';
 import { applyForJob, getMyApplications } from '../services/applicationService';
 import { errorMessage } from '../services/api';
 import { useFetch } from '../utils/useFetch';
 
 export default function JobDetails() {
   const { id = '' } = useParams();
+  const { session } = useAuth();
+  return <JobDetailsContent key={id + ':' + (session?.role ?? '') + ':' + (session?.userId ?? '')} id={id} />;
+}
+
+function JobDetailsContent({ id }: { id: string }) {
   const { session } = useAuth();
   const { t } = useTranslation();
   const [applying, setApplying] = useState(false);
@@ -38,6 +44,12 @@ export default function JobDetails() {
     () => session?.role === 'worker' ? getMyApplications() : Promise.resolve([]),
     [session?.role, job?.jobId]
   );
+  const matching = useFetch(
+    () => session?.role === 'worker' ? getMyRecommendations() : Promise.resolve(null),
+    [session?.role, session?.userId],
+  );
+  const details = matching.loading || matching.error ? null : matching.data;
+  const exclusion = job && details?.excludedJobs?.[job.jobId];
   const alreadyApplied = applications.data?.some((application) => application.jobId === job?.jobId) ?? false;
 
   async function apply() {
@@ -49,6 +61,7 @@ export default function JobDetails() {
       await applyForJob(job.jobId);
       setApplicationMessage(true);
       applications.reload();
+      matching.reload();
     } catch (error) {
       setApplicationError(errorMessage(error));
     } finally {
@@ -185,6 +198,13 @@ export default function JobDetails() {
             </p>
           </div>
 
+          {session?.role === 'worker' && (
+            <div>
+              {matching.error && <ErrorMessage message={matching.error} onRetry={matching.reload} />}
+              <JobMatchStatus job={job} details={details} loading={matching.loading} />
+            </div>
+          )}
+
           {/* Worker Application Action Box */}
           {session?.role === 'worker' && job.status?.toUpperCase() === 'OPEN' && (
             <div className="border-t border-slate-200 pt-6">
@@ -227,7 +247,7 @@ export default function JobDetails() {
 
                   <button
                     type="button"
-                    disabled={applying || applications.loading || Boolean(applications.error)}
+                    disabled={applying || applications.loading || matching.loading || Boolean(applications.error || exclusion)}
                     onClick={apply}
                     className="btn-primary w-full text-lg font-bold !py-3.5 flex items-center justify-center gap-2.5 shadow-md"
                   >

@@ -20,7 +20,13 @@ function installFixtures(role, scenario) {
     requiredSkill: 'Carpenter', location: 'Vijayawada', wagePerDay: 500,
     status: 'OPEN', requiredWorkers: 2,
   };
-  const excluded = { ...job, jobId: 2, title: 'Distant opening', location: 'Gudivada' };
+  const excluded = { ...job, jobId: 2, title: 'Lower wage opening', wagePerDay: 400 };
+  const unrelated = { ...job, jobId: 3, title: 'Pipe installation', requiredSkill: 'Plumber' };
+  const applied = { ...job, jobId: 4, title: 'Existing application' };
+  const compatibility = {
+    1: { skillMatch: 100, rulesScore: 100 }, 2: { skillMatch: 100, rulesScore: 96 },
+    3: { skillMatch: 0, rulesScore: 60 }, 4: { skillMatch: 100, rulesScore: 100 },
+  };
   const fallback = { method: 'RULE_BASED', matchPercentage: null, fallbackReason: 'MODEL_UNAVAILABLE', featureIssues: [] };
   const ml = { method: 'ML', matchPercentage: 92.55, fallbackReason: null, featureIssues: [] };
   const identity = {
@@ -29,7 +35,7 @@ function installFixtures(role, scenario) {
   };
   localStorage.setItem('ll_token', 'fixture-bearer');
   localStorage.setItem('ll_session', JSON.stringify(identity));
-  localStorage.setItem('i18nextLng', 'en');
+  localStorage.setItem('labourlink-language', scenario === 'telugu' ? 'te' : 'en');
 
   window.fetch = async (url, options) => {
     const endpoint = new URL(url);
@@ -39,22 +45,29 @@ function installFixtures(role, scenario) {
       case '/workers/me':
         return Response.json(worker);
       case '/jobs':
-        return Response.json(role === 'worker' ? [excluded, job] : [job]);
+        return Response.json(role === 'worker' ? [excluded, unrelated, applied, job] : [job]);
+      case '/jobs/1':
+        return Response.json(job);
+      case '/jobs/2':
+        return Response.json(excluded);
+      case '/jobs/4':
+        return Response.json(applied);
       case '/jobs/recommendations/me':
         if (options.headers.Authorization !== 'Bearer fixture-bearer' || endpoint.searchParams.get('details') !== 'true') {
           return Response.json({}, { status: 403 });
         }
         if (scenario === 'error') return Response.json({}, { status: 503 });
-        if (scenario === 'invalid') return Response.json({ data: [] });
+        if (scenario === 'invalid') return Response.json({ recommendations: [], exclusions: [],
+          compatibility: { 1: { skillMatch: 199, rulesScore: 100 } } });
         if (scenario === 'empty') return Response.json({ recommendations: [], exclusions: ['LOCATION'] });
         return Response.json({
           recommendations: [{ job, matchingScore: 100, contractorName: 'Fixture contractor',
             recommendation: fallback, matchingReasons: ['SKILL', 'LOCATION'] }],
-          exclusions: [], excludedJobs: { 2: 'LOCATION' },
+          exclusions: [], compatibility, excludedJobs: { 2: 'WAGE', 3: 'SKILL', 4: 'ALREADY_APPLIED' },
         });
       case '/jobs/1/matches':
         if (options.headers.Authorization !== 'Bearer fixture-bearer') return Response.json({}, { status: 403 });
-        return Response.json([{ ...worker, matchingScore: 100, recommendation: ml, matchingReasons: ['SKILL'] }]);
+        return Response.json([{ ...worker, phone: null, skillMatch: 100, matchingScore: 100, recommendation: ml, matchingReasons: ['SKILL'] }]);
       default:
         return Response.json([]);
     }
@@ -70,7 +83,7 @@ const server = createServer(async (request, response) => {
       response.end(await readFile(join(dist, 'assets', asset)));
       return;
     }
-    const role = url.pathname.startsWith('/contractor') ? 'contractor' : 'worker';
+    const role = (url.pathname.startsWith('/contractor') || url.pathname.endsWith('/matches')) ? 'contractor' : 'worker';
     const args = [role, url.searchParams.get('scenario')].map((value) => JSON.stringify(value)).join(',');
     response.setHeader('Content-Type', 'text/html');
     response.end(html.replace('</head>', '<script>(' + installFixtures.toString() + ')(' + args + ')</script></head>'));
@@ -157,22 +170,32 @@ try {
   }
 
   const worker = '/worker/dashboard';
-  await check(worker, ['AI Recommended Jobs', 'Fixture contractor', 'Rule-based compatibility score',
-    '100%', 'Future Work Opportunities', 'Model scoring is unavailable', 'Cabinet installation']);
+  await check(worker, ['AI Recommended Jobs', 'Fixture contractor', 'Overall rules-based compatibility score',
+    'Skill match 100%', 'Future Work Opportunities', 'Model scoring is unavailable', 'Cabinet installation'],
+    ['7-Day Employment Probability', '30-Day Employment Probability']);
   await check(worker + '?scenario=empty', ['No eligible jobs right now', 'Some jobs for your skill have a different location.',
-    'All Available Jobs'], ['Rule-based compatibility score']);
+    'All Available Jobs'], ['Overall rules-based compatibility score']);
   await check(worker + '?scenario=error', ['AI Recommended Jobs', 'All Available Jobs'], ['No eligible jobs right now'], true);
   await check(worker + '?scenario=invalid', ['The server returned an invalid recommendation response.'],
     ['No eligible jobs right now'], true);
-  await check('/jobs', ['100%', 'Not eligible', 'Distant opening', 'Cabinet installation']);
+  await check('/jobs', ['Skill match 100%', 'Skill match 0%', 'Not eligible', 'Lower wage opening', 'Cabinet installation']);
   const { result: order } = await cdp('Runtime.evaluate', {
-    expression: "document.body.innerText.indexOf('Cabinet installation') < document.body.innerText.indexOf('Distant opening')",
+    expression: "document.body.innerText.indexOf('Cabinet installation') < document.body.innerText.indexOf('Existing application') && document.body.innerText.indexOf('Existing application') < document.body.innerText.indexOf('Lower wage opening')",
     returnByValue: true,
   });
   assert.equal(order.value, true, 'Find Work should place scored jobs before ineligible jobs');
+  await check('/jobs/2', ['Skill match 100%', '₹400 per day', 'Not eligible']);
+  await check('/jobs/4', ['Skill match 100%', 'You already applied for this job.']);
+  const { result: disabled } = await cdp('Runtime.evaluate', {
+    expression: "Array.from(document.querySelectorAll('button')).some(button => button.disabled && button.textContent.includes('Apply'))",
+    returnByValue: true,
+  });
+  assert.equal(disabled.value, true, 'Existing applicants cannot reapply');
+  await check(worker + '?scenario=telugu', ['నైపుణ్య సరిపోలిక 100%', 'భవిష్యత్ పని అవకాశాలు']);
   await cdp('Emulation.setDeviceMetricsOverride', { width: 1366, height: 900, deviceScaleFactor: 1, mobile: false });
   await check(worker, ['Future Work Opportunities', '100%', 'Not eligible']);
-  await check('/contractor/dashboard', ['Recommended Workers', 'Fixture worker', 'ML match score', '92.55%']);
+  await check('/contractor/dashboard', ['Recommended Workers', 'Fixture worker', 'Overall ML match score', 'Skill match 100%', 'Eligible', '92.55%']);
+  await check('/jobs/1/matches', ['Skill match 100%', 'Overall ML match score', '92.55%'], ['6990000903']);
 } finally {
   ws?.close();
   if (browser?.pid && browser.exitCode === null) {

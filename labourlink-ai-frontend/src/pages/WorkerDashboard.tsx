@@ -17,7 +17,6 @@ import {
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import MatchSummary from '../components/MatchSummary';
 import JobMatchStatus, { orderJobsByMatch } from '../components/JobMatchStatus';
 import JobCard from '../components/JobCard';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -244,14 +243,21 @@ function WorkerDashboardContent() {
             </div>
           </div>
 
-          <section className="grid gap-4 sm:grid-cols-2">
-            {(['sevenDays', 'thirtyDays'] as const).map((horizon) => (
-              <article key={horizon} className="card border-2 border-slate-200 bg-white p-5">
-                <h2 className="font-bold text-blue-950">{t('dashboardMatching.' + horizon)}</h2>
-                <p className="mt-2 text-sm text-slate-700">{t('dashboardMatching.insufficientData')}</p>
-              </article>
-            ))}
-          </section>
+            <section className="card space-y-2 p-4">
+              <h2 className="font-semibold text-blue-950">{t('dashboardMatching.opportunities')}</h2>
+              <p>{t('dashboardMatching.opportunitiesExplanation')}</p>
+              <p>{t('dashboardMatching.forecastEvidence')}</p>
+              {!recommendations.loading && !recommendations.error && recommendations.data && (
+                <>
+                  <p role="status">{t('dashboardMatching.count', { count: recommended.length })}</p>
+                  {recommended[0] && (
+                    <p>{t('dashboardMatching.bestScore', {
+                      score: recommended[0].recommendation?.matchPercentage ?? recommended[0].matchingScore,
+                    })}</p>
+                  )}
+                </>
+              )}
+            </section>
 
           {/* Matching Jobs for Worker */}
           <div className="space-y-4">
@@ -273,20 +279,6 @@ function WorkerDashboardContent() {
             {recommendations.loading && <LoadingSpinner label={t('workerDashboard.loadingJobs')} />}
             {recommendations.error && <ErrorMessage message={recommendations.error} onRetry={recommendations.reload} />}
 
-            <section className="card space-y-2 p-4">
-              <h3 className="font-semibold text-blue-950">{t('dashboardMatching.opportunities')}</h3>
-              <p>{t('dashboardMatching.opportunitiesExplanation')}</p>
-              {!recommendations.loading && !recommendations.error && recommendations.data && (
-                <>
-                  <p role="status">{t('dashboardMatching.count', { count: recommended.length })}</p>
-                  {recommended[0] && (
-                    <p>{t('dashboardMatching.bestScore', {
-                      score: recommended[0].recommendation?.matchPercentage ?? recommended[0].matchingScore,
-                    })}</p>
-                  )}
-                </>
-              )}
-            </section>
             {applyFailed && <p role="alert" className="text-sm text-red-700">{t('opportunity.applyFailure')}</p>}
 
             {!recommendations.loading && !recommendations.error && recommendations.data?.recommendations.length === 0 && (
@@ -311,9 +303,9 @@ function WorkerDashboardContent() {
             )}
 
             <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-              {recommended.map(({ job, matchingScore, recommendation, contractorName, matchingReasons }) => (
+              {recommended.map(({ job, contractorName }) => (
                 <div key={job.jobId} className="flex flex-col gap-2">
-                  <MatchSummary score={matchingScore} recommendation={recommendation} reasons={matchingReasons} />
+                  <JobMatchStatus job={job} details={recommendations.data} loading={false} />
                   <JobCard job={job} contractorName={contractorName} />
                   <button type="button" className="btn-primary"
                     disabled={applied.has(job.jobId) || applying !== null || applications.loading || !!applications.error}
@@ -354,7 +346,7 @@ function WorkerDashboardContent() {
               {orderJobsByMatch(jobs.data ?? [], recommendations.error || recommendations.loading ? null : recommendations.data)
                 .slice(0, 6).map((job) => (
                   <div key={job.jobId} className="flex flex-col gap-2">
-                    <JobMatchStatus id={job.jobId} loading={recommendations.loading}
+                    <JobMatchStatus job={job} loading={recommendations.loading}
                       details={recommendations.error || recommendations.loading ? null : recommendations.data} />
                     <JobCard job={job} />
                   </div>

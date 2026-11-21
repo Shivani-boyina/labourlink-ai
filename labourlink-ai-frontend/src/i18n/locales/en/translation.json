@@ -1,5 +1,10 @@
 {
   "dashboardMatching": {
+    "skillPercent": "Skill match {{score}}%",
+    "skillUnavailable": "Skill match unavailable",
+    "eligible": "Eligible",
+    "wageBelowExpected": "This job offers ₹{{wage}} per day, below your expected daily wage.",
+    "forecastEvidence": "Employment forecasts require dated worker snapshots and verified job starts with at least 30 days of follow-up.",
     "ineligible": "Not eligible",
     "unscorable": "Match score unavailable",
     "opportunities": "Future Work Opportunities",
@@ -20,9 +25,6 @@
       "NO_OPEN_SLOTS": "Some matching jobs have filled all their positions.",
       "SCHEDULE": "Some matching jobs conflict with your work schedule or you have already been accepted."
     },
-    "sevenDays": "7-Day Employment Probability",
-    "thirtyDays": "30-Day Employment Probability",
-    "insufficientData": "Prediction unavailable — insufficient historical data",
     "jobs": "AI Recommended Jobs",
     "count_one": "{{count}} recommended job",
     "count_other": "{{count}} recommended jobs",
@@ -33,8 +35,8 @@
     "noOpenJobs": "Post an open job to see worker recommendations.",
     "workerLoadFailed": "Worker recommendations could not be loaded.",
     "noWorkers": "No eligible workers for this job right now.",
-    "mlScore": "ML match score",
-    "ruleScore": "Rule-based compatibility score",
+    "mlScore": "Overall ML match score",
+    "ruleScore": "Overall rules-based compatibility score",
     "baseExplanation": "Skill and location match. Availability and job requirements were checked."
   },
   "workerEmployment": {

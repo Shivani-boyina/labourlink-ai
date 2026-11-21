@@ -60,14 +60,16 @@ public class WorkerMatchingService {
         List<JobMatchDTO> matches = new ArrayList<>();
         for (Worker worker : eligible) {
             var rating = ratings.getOrDefault(worker.getWorkerId(), ReviewReadRepository.Rating.UNRATED);
-            var match = new JobMatchDTO(worker.getWorkerId(), worker.getName(), worker.getPhone(), worker.getSkill(),
+            var match = new JobMatchDTO(worker.getWorkerId(), worker.getName(), null, worker.getSkill(),
                     worker.getExperience(), worker.getLocation(), worker.getAvailability(),
                     "Skill and location match; recorded availability and job requirements checked");
             match.applyRating(rating.averageRating(), rating.reviewCount());
+            var compatibility = compatibility(job, worker);
+            match.setSkillMatch(compatibility.skillMatch());
+            match.setMatchingScore(compatibility.rulesScore());
             if (includePrediction) {
                 var input = MLFeatureMapper.from(worker, job, rating, monthly.countFor(worker.getWorkerId()));
                 match.applyRecommendation(batch.score(input), reasons(job, worker));
-                match.setMatchingScore(recommendationScore(job, worker));
             }
             matches.add(match);
         }
@@ -91,9 +93,11 @@ public class WorkerMatchingService {
         LocalDate today = LocalDate.ofInstant(now, ZoneId.of("Asia/Kolkata"));
         var ids = List.of(worker.getWorkerId());
         var exclusions = EnumSet.noneOf(Reason.class);
+        var compatibility = new HashMap<Long, JobRecommendationsDTO.Compatibility>();
         var excludedJobs = new HashMap<Long, Reason>();
         List<Job> eligible = new ArrayList<>();
         for (Job job : candidates) {
+            compatibility.put(job.getJobId(), compatibility(job, worker));
             // Record the first failed criterion per job. Capacity and schedule reads only
             // run for jobs that already meet the profile requirements.
             Reason reason = !"OPEN".equalsIgnoreCase(MatchingText.normalize(job.getStatus())) ? Reason.CLOSED
@@ -107,35 +111,36 @@ public class WorkerMatchingService {
                 excludedJobs.put(job.getJobId(), reason);
             }
         }
-        if (eligible.isEmpty()) return new JobRecommendationsDTO(List.of(), List.copyOf(exclusions), excludedJobs);
+        if (eligible.isEmpty()) return new JobRecommendationsDTO(List.of(), List.copyOf(exclusions), excludedJobs, compatibility);
         var rating = reviews.ratings(ids).getOrDefault(worker.getWorkerId(), ReviewReadRepository.Rating.UNRATED);
         var month = history.monthlyAllocations(ids, MatchingDataRepository.Month.containing(now)).countFor(worker.getWorkerId());
         var batch = scoring.batch();
         var recommendations = eligible.stream()
-                .map(job -> new JobSearchDTO(job, recommendationScore(job, worker),
+                .map(job -> new JobSearchDTO(job, compatibility.get(job.getJobId()).rulesScore(),
                         batch.score(MLFeatureMapper.from(worker, job, rating, month)), reasons(job, worker)))
                 .sorted(Comparator.comparingDouble((JobSearchDTO row) -> displayScore(row.getRecommendation(), row.getMatchingScore())).reversed()
                         .thenComparing(row -> row.getJob().getJobId()))
                 .toList();
-        return new JobRecommendationsDTO(recommendations, List.of(), excludedJobs);
+        return new JobRecommendationsDTO(recommendations, List.of(), excludedJobs, compatibility);
     }
 
-    private static int recommendationScore(Job job, Worker worker) {
-        int score = 0;
-        if (sameSkill(job.getRequiredSkill(), worker.getSkill())) score += 40;
+    private static JobRecommendationsDTO.Compatibility compatibility(Job job, Worker worker) {
+        boolean exactSkill = sameSkill(job.getRequiredSkill(), worker.getSkill());
+        int score = exactSkill ? 40 : 0;
         if (same(job.getLocation(), worker.getLocation())) score += 25;
 
         Integer minimumExperience = job.getMinimumExperience();
-        if (minimumExperience == null || minimumExperience == 0) score += 15;
+        if (minimumExperience == null || minimumExperience <= 0) score += 15;
         else if (worker.getExperience() != null && worker.getExperience() >= minimumExperience) score += 15;
-        else if (worker.getExperience() != null) score += Math.max(0, 15 * worker.getExperience() / minimumExperience);
+        else if (worker.getExperience() != null) score += Math.max(0, (int) (15L * worker.getExperience() / minimumExperience));
 
         Double expected = worker.getExpectedWagePerDay();
         Double offered = job.getWagePerDay();
-        if (expected != null && expected > 0 && offered != null) {
-            score += (int) Math.round(20 * Math.min(1.0, offered / expected));
+        if (expected != null && Double.isFinite(expected) && expected >= 0
+                && offered != null && Double.isFinite(offered) && offered > 0) {
+            score += expected == 0 ? 20 : (int) Math.round(20 * Math.min(1.0, offered / expected));
         }
-        return score;
+        return new JobRecommendationsDTO.Compatibility(exactSkill ? 100 : 0, score);
     }
 
     private static double displayScore(MLMatchScoring.Result recommendation, int rulesScore) {
