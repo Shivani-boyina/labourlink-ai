@@ -94,12 +94,25 @@ function validScore(value: unknown): value is number {
 export async function getMyRecommendations(): Promise<RecommendationDetails> {
   if (USE_MOCK) return { recommendations: [], exclusions: [] };
 
-  const payload = await request<RecommendationDetails | JobRecommendation[]>('/jobs/recommendations/me', {
-    auth: true,
-    query: { details: 'true' },
-  });
-  // Older backend deployments return the original array.
-  const result = Array.isArray(payload) ? { recommendations: payload, exclusions: [] } : payload;
+  let result: RecommendationDetails;
+  try {
+    result = await request<RecommendationDetails>('/jobs/recommendations/me', {
+      auth: true,
+      query: { details: 'true' },
+    });
+  } catch (error) {
+    if (!(error instanceof ApiError)) throw error;
+    console.warn('Worker recommendations request failed', {
+      endpoint: '/jobs/recommendations/me', status: error.status,
+    });
+    if (error.status === 400 || error.status >= 500) {
+      throw new ApiError(i18n.t('dashboardMatching.requestFailed'), error.status);
+    }
+    throw error;
+  }
+  if (Array.isArray(result)) {
+    throw new ApiError(i18n.t('dashboardMatching.detailsUnavailable'), 502);
+  }
   if (!Array.isArray(result?.recommendations) ||
       result.recommendations.some((row) => !Number.isSafeInteger(row?.job?.jobId) ||
         !validScore(row.matchingScore) ||

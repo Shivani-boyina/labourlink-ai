@@ -1,5 +1,7 @@
 {
   "dashboardMatching": {
+    "requestFailed": "Job recommendations could not load. Try again.",
+    "detailsUnavailable": "This server did not return personalized matching details.",
     "skillPercent": "Skill match {{score}}%",
     "skillUnavailable": "Skill match unavailable",
     "eligible": "Eligible",

@@ -1,5 +1,7 @@
 {
   "dashboardMatching": {
+    "requestFailed": "ఉద్యోగ సిఫార్సులు లోడ్ కాలేదు. మళ్లీ ప్రయత్నించండి.",
+    "detailsUnavailable": "సర్వర్ వ్యక్తిగత సరిపోలిక వివరాలను అందించలేదు.",
     "skillPercent": "నైపుణ్య సరిపోలిక {{score}}%",
     "skillUnavailable": "నైపుణ్య సరిపోలిక అందుబాటులో లేదు",
     "eligible": "అర్హత ఉంది",

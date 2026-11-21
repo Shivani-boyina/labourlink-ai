@@ -2,24 +2,34 @@ package com.labourlink.labourlinkai.controller;
 
 import com.labourlink.labourlinkai.dto.JobMatchDTO;
 import com.labourlink.labourlinkai.dto.JobSearchDTO;
-import com.labourlink.labourlinkai.dto.JobRecommendationsDTO;
 import com.labourlink.labourlinkai.entity.Contractor;
 import com.labourlink.labourlinkai.entity.Job;
 import com.labourlink.labourlinkai.repository.ContractorRepository;
 import com.labourlink.labourlinkai.repository.JobRepository;
 import com.labourlink.labourlinkai.service.JobService;
 
+import com.labourlink.labourlinkai.response.ApiResponse;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.security.core.Authentication;
 
 import java.security.Principal;
+import java.sql.SQLException;
+import java.util.function.Supplier;
 import java.util.List;
 
 @RestController
 @RequestMapping("/jobs")
 public class JobController {
+
+    private static final Logger LOG = LoggerFactory.getLogger(JobController.class);
 
     @Autowired
     private JobService jobService;
@@ -130,13 +140,35 @@ public class JobController {
     }
 
     @GetMapping("/recommendations/me")
-    public List<JobSearchDTO> getRecommendations(Principal principal) {
-        return jobService.findRecommendedJobs(principal.getName());
+    public ResponseEntity<?> getRecommendations(Principal principal) {
+        return recommendationResponse(() -> jobService.findRecommendedJobs(principal.getName()));
     }
 
     @GetMapping(value = "/recommendations/me", params = "details=true")
-    public JobRecommendationsDTO getRecommendationDetails(Principal principal) {
-        return jobService.findRecommendationDetails(principal.getName());
+    public ResponseEntity<?> getRecommendationDetails(Principal principal) {
+        return recommendationResponse(() -> jobService.findRecommendationDetails(principal.getName()));
+    }
+
+    private ResponseEntity<?> recommendationResponse(Supplier<?> load) {
+        try {
+            return ResponseEntity.ok(load.get());
+        } catch (ResponseStatusException failure) {
+            return ResponseEntity.status(failure.getStatusCode())
+                    .body(new ApiResponse<>(failure.getReason(), "error", null));
+        } catch (RuntimeException failure) {
+            String sqlState = null;
+            Throwable cause = failure;
+            while (cause != null && sqlState == null) {
+                if (cause instanceof SQLException sql) sqlState = sql.getSQLState();
+                cause = cause.getCause();
+            }
+            var status = failure instanceof DataAccessResourceFailureException
+                    ? HttpStatus.SERVICE_UNAVAILABLE : HttpStatus.INTERNAL_SERVER_ERROR;
+            LOG.error("Worker recommendations failed: status={} exception={} sqlState={}",
+                    status.value(), failure.getClass().getSimpleName(), sqlState);
+            return ResponseEntity.status(status)
+                    .body(new ApiResponse<>("Recommendations could not be loaded", "error", null));
+        }
     }
 
     // FIND MATCHING WORKERS FOR A JOB

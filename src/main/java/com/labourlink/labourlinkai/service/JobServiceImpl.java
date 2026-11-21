@@ -1,5 +1,8 @@
 package com.labourlink.labourlinkai.service;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+
 import com.labourlink.labourlinkai.dto.JobMatchDTO;
 import com.labourlink.labourlinkai.dto.JobSearchDTO;
 import com.labourlink.labourlinkai.dto.JobRecommendationsDTO;
@@ -257,7 +260,7 @@ public class JobServiceImpl implements JobService {
     @Override
     public JobRecommendationsDTO findRecommendationDetails(String workerPhone) {
         Worker worker = workerRepository.findByPhone(workerPhone)
-                .orElseThrow(() -> new RuntimeException("Worker not found"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Worker not found"));
         var appliedJobs = applicationRepository.findByWorkerId(worker.getWorkerId()).stream()
                 .map(application -> application.getJobId()).collect(Collectors.toSet());
         var result = workerMatching.recommend(worker, jobRepository.findAll(), this::isJobNotFull, appliedJobs);

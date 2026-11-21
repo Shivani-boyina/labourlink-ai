@@ -1,6 +1,8 @@
 package com.labourlink.labourlinkai.integration;
 
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.converter.HttpMessageConversionException;
 import org.springframework.web.client.RestClientException;
 
@@ -12,6 +14,7 @@ import java.util.Map;
 
 @Service
 public class MLMatchScoring {
+    private static final Logger LOG = LoggerFactory.getLogger(MLMatchScoring.class);
     private static final String MODEL_NAME = "Logistic Regression";
     private static final String MODEL_SHA256 = "EA57FF5513A99263ABC182725E67B889E7C72266F6B255F33B3169C14F1995D0";
     private static final Duration PREDICTION_TTL = Duration.ofMinutes(5);
@@ -88,6 +91,7 @@ public class MLMatchScoring {
                 return new Result("ML", percentage, null, List.of());
             } catch (RestClientException | HttpMessageConversionException | IllegalArgumentException e) {
                 retryAt = Instant.now().plus(RETRY_DELAY);
+                LOG.warn("ML recommendation fallback: operation=predict exception={}", e.getClass().getSimpleName());
                 return Result.rules("MODEL_UNAVAILABLE", List.of());
             }
         }
@@ -108,6 +112,7 @@ public class MLMatchScoring {
                 return contract;
             } catch (RestClientException | HttpMessageConversionException | IllegalArgumentException e) {
                 retryAt = Instant.now().plus(RETRY_DELAY);
+                LOG.warn("ML recommendation fallback: operation=featureContract exception={}", e.getClass().getSimpleName());
                 return null;
             }
         }

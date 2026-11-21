@@ -37,6 +37,7 @@ function installFixtures(role, scenario) {
   localStorage.setItem('ll_session', JSON.stringify(identity));
   localStorage.setItem('labourlink-language', scenario === 'telugu' ? 'te' : 'en');
 
+  let recommendationRequests = 0;
   window.fetch = async (url, options) => {
     const endpoint = new URL(url);
     switch (endpoint.pathname) {
@@ -53,9 +54,14 @@ function installFixtures(role, scenario) {
       case '/jobs/4':
         return Response.json(applied);
       case '/jobs/recommendations/me':
-        if (options.headers.Authorization !== 'Bearer fixture-bearer' || endpoint.searchParams.get('details') !== 'true') {
+        if (options.method !== 'GET' || options.body !== undefined || options.headers.Authorization !== 'Bearer fixture-bearer' || endpoint.searchParams.get('details') !== 'true') {
           return Response.json({}, { status: 403 });
         }
+        recommendationRequests++;
+        if (scenario === 'retry' && recommendationRequests === 1) {
+          return Response.json({ message: 'private SQL detail' }, { status: 400 });
+        }
+        if (scenario === 'legacy') return Response.json([]);
         if (scenario === 'error') return Response.json({}, { status: 503 });
         if (scenario === 'invalid') return Response.json({ recommendations: [], exclusions: [],
           compatibility: { 1: { skillMatch: 199, rulesScore: 100 } } });
@@ -145,8 +151,8 @@ try {
   await cdp('Emulation.setDeviceMetricsOverride', { width: 360, height: 800, deviceScaleFactor: 1, mobile: true });
   const base = 'http://127.0.0.1:' + server.address().port;
 
-  async function check(path, expected, absent = [], alert = false) {
-    await cdp('Page.navigate', { url: base + path });
+  async function check(path, expected, absent = [], alert = false, navigate = true) {
+    if (navigate) await cdp('Page.navigate', { url: base + path });
     let state;
     for (let attempt = 0; attempt < 70; attempt++) {
       try {
@@ -183,6 +189,14 @@ try {
   await check(worker + '?scenario=error', ['AI Recommended Jobs', 'All Available Jobs'], ['No eligible jobs right now'], true);
   await check(worker + '?scenario=invalid', ['The server returned an invalid recommendation response.'],
     ['No eligible jobs right now'], true);
+  await check(worker + '?scenario=legacy', ['This server did not return personalized matching details.'], [], true);
+  const retryPath = worker + '?scenario=retry';
+  await check(retryPath, ['Job recommendations could not load.', 'Try again'], ['private SQL detail'], true);
+  await cdp('Runtime.evaluate', {
+    expression: "document.querySelector('[role=alert] button').click()",
+  });
+  await check(retryPath, ['Skill match 100%', 'Overall rules-based compatibility score'],
+    ['Job recommendations could not load.'], false, false);
   await check('/jobs', ['Skill match 100%', 'Skill match 0%', 'Not eligible', 'Lower wage opening', 'Cabinet installation']);
   const { result: order } = await cdp('Runtime.evaluate', {
     expression: "document.body.innerText.indexOf('Cabinet installation') < document.body.innerText.indexOf('Existing application') && document.body.innerText.indexOf('Existing application') < document.body.innerText.indexOf('Lower wage opening')",

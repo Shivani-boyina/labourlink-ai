@@ -159,7 +159,8 @@ class BatchOneWebTest {
         verify(jobs).findRecommendationDetails("worker-phone");
 
         allowToken("another-worker", "separate-phone", "WORKER");
-        when(jobs.findRecommendationDetails("separate-phone")).thenThrow(new IllegalStateException("Worker not found"));
+        when(jobs.findRecommendationDetails("separate-phone")).thenThrow(new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.NOT_FOUND, "Worker not found"));
         mvc.perform(get(endpoint).param("details", "true").header("Authorization", "Bearer another-worker"))
                 .andExpect(status().isNotFound()).andExpect(jsonPath("$.recommendations").doesNotExist());
         verify(jobs).findRecommendationDetails("separate-phone");
@@ -167,6 +168,21 @@ class BatchOneWebTest {
         when(jobs.findRecommendedJobs("worker-phone")).thenReturn(List.of());
         mvc.perform(get(endpoint).header("Authorization", "Bearer worker"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$").isArray());
+    }
+
+    @Test
+    void workerRecommendationInfrastructureErrorsAreNotValidationErrors() throws Exception {
+        String endpoint = "/jobs/recommendations/me";
+        when(jobs.findRecommendationDetails("worker-phone"))
+                .thenThrow(new org.springframework.dao.InvalidDataAccessResourceUsageException("private SQL detail"))
+                .thenThrow(new org.springframework.dao.DataAccessResourceFailureException("private connection detail"));
+
+        mvc.perform(get(endpoint).param("details", "true").header("Authorization", "Bearer worker"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.message").value("Recommendations could not be loaded"));
+        mvc.perform(get(endpoint).param("details", "true").header("Authorization", "Bearer worker"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.message").value("Recommendations could not be loaded"));
     }
 
     @Test

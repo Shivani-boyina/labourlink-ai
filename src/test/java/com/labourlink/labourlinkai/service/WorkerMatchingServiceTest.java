@@ -179,6 +179,40 @@ class WorkerMatchingServiceTest {
         assertThat(service.find(opening, true)).extracting(row -> row.getMatchingScore()).containsExactly(100, 80);
     }
 
+    @Test
+    void helperProfileMatchesOnlyEligibleHelperJobs() {
+        var helper = worker();
+        helper.setSkill("Helper");
+        helper.setExperience(4);
+        helper.setLocation("Vijayawada");
+        var eligible = job("Vijayawada");
+        eligible.setRequiredSkill(" helper ");
+        var cooking = job("Vijayawada");
+        cooking.setJobId(10L);
+        cooking.setRequiredSkill("Cooking Helper");
+        var senior = job("Vijayawada");
+        senior.setJobId(11L);
+        senior.setRequiredSkill("Helper");
+        senior.setMinimumExperience(5);
+        var distant = job("Gudivada");
+        distant.setJobId(12L);
+        distant.setRequiredSkill("Helper");
+        when(history.monthlyAllocations(eq(List.of(7L)), any()))
+                .thenReturn(new MatchingDataRepository.AllocationHistory(Map.of(), Set.of()));
+        when(client.featureContract()).thenThrow(new ResourceAccessException("offline"));
+
+        var result = service.recommend(helper, List.of(cooking, senior, eligible, distant), job -> true);
+
+        assertThat(result.recommendations()).singleElement().satisfies(row -> {
+            assertThat(row.getJob().getJobId()).isEqualTo(9L);
+            assertThat(row.getRecommendation().fallbackReason()).isEqualTo("MODEL_UNAVAILABLE");
+        });
+        assertThat(result.compatibility().get(9L).skillMatch()).isEqualTo(100);
+        assertThat(result.compatibility().get(10L).skillMatch()).isZero();
+        assertThat(result.excludedJobs()).containsEntry(10L, Reason.SKILL)
+                .containsEntry(11L, Reason.EXPERIENCE).containsEntry(12L, Reason.LOCATION);
+    }
+
     private Worker worker() {
         var worker = new Worker();
         worker.setWorkerId(7L);
